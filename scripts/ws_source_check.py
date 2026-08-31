@@ -13,7 +13,9 @@ QUESTION = os.environ.get("PROBE_Q", "what is digital diplomacy?")
 
 
 async def main() -> None:
-    async with httpx.AsyncClient(base_url=BASE, timeout=30) as client:
+    # Docker bridge gateway is not in ALLOWED_IPS; present a loopback client IP.
+    headers = {"X-Real-IP": "127.0.0.1"}
+    async with httpx.AsyncClient(base_url=BASE, timeout=30, headers=headers) as client:
         r = await client.post("/api/conversation/get_id", json={"conversationId": None})
         r.raise_for_status()
         conv = r.json()

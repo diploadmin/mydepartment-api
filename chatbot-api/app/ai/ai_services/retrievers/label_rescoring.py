@@ -91,7 +91,9 @@ class LabelRescoringRetriever(BaseRetriever):
                 props = normalize_props(obj.properties or {})
                 original_score = obj.metadata.score if obj.metadata else 0.0
                 label = label_from_props(props)
-                title = doc_title(props)
+                from app.services.doc_title_service import display_title
+
+                title = display_title(props)
 
                 metadata = {
                     "title": title,

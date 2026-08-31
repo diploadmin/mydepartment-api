@@ -264,18 +264,21 @@ class SentenceFirstRetriever(BaseRetriever):
             if group_key not in section_groups:
                 st = source_type(props)
                 label = label_from_props(props)
+                from app.services.doc_title_service import display_title
+
+                card_title = display_title(props)
                 section_groups[group_key] = {
                     "section_context": "",
                     "context_parts": set(),
                     "paragraph_ids": set(),
                     "sentences": [],
                     "metadata": {
-                        "title": doc_title(props),
+                        "title": card_title,
                         "url": url,
                         "date": doc_date(props),
                         "label": label,
                         "post_type": st,
-                        "h1": doc_title(props),
+                        "h1": card_title,
                         "h2": heading_leaf(section),
                         "h3": "",
                         "section": section,

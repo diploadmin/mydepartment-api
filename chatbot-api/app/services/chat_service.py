@@ -2,7 +2,7 @@ from datetime import datetime
 from app.core.logging import logger
 from app.core.singleton import Singleton
 # config that comunicates with .env file
-from app.core.config import USE_SOURCE_FILTER, CITE_SOURCES, DEEP_LINK_HIGHLIGHT_MODE, SENTENCE_HIGHLIGHT_MODE, USE_SHORT_DEEP_LINKS, DEEP_LINK_API_URL, USE_CUSTOM_SYSTEM_PROMPT, PDF_PROXY_BASE_URL, DOC_VIEWER_BASE_URL
+from app.core.config import USE_SOURCE_FILTER, CITE_SOURCES, DEEP_LINK_HIGHLIGHT_MODE, SENTENCE_HIGHLIGHT_MODE, USE_SHORT_DEEP_LINKS, DEEP_LINK_API_URL, USE_CUSTOM_SYSTEM_PROMPT, PDF_PROXY_BASE_URL, DOC_VIEWER_BASE_URL, HIGHLIGHT_SCRIPT_HOSTS
 from app.core.retrieval_context import set_retrieval_overrides, clear_retrieval_overrides, get_param
 from app.services.deep_link_service import DeepLinkService
 from app.models.chat_domain import *
@@ -14,7 +14,7 @@ import json
 import ast
 import re
 import requests as http_requests
-from urllib.parse import quote, quote_plus
+from urllib.parse import quote, quote_plus, urlparse
 from langchain_core.messages import SystemMessage
 
 from app.services.chatService import *
@@ -205,6 +205,58 @@ def _via_proxy_url(pdf_url: str) -> str:
     return f"{proxy}/{raw}"
 
 
+def _host_runs_highlight_script(url: str) -> bool:
+    """True when the target host serves the Diplo highlight script."""
+    host = (urlparse(url).hostname or '').lower()
+    if not host:
+        return False
+    return any(
+        host == suffix or host.endswith('.' + suffix)
+        for suffix in HIGHLIGHT_SCRIPT_HOSTS
+    )
+
+
+_FRAGMENT_EDGE_WORDS = 8
+
+
+def _encode_fragment_part(text: str) -> str:
+    """Percent-encode for ``#:~:text=``; ``-`` and ``,`` are syntax there."""
+    return quote(text, safe='').replace('-', '%2D')
+
+
+def _text_fragment(page_content: str, metadata: dict) -> str:
+    """Browser-native ``:~:text=`` payload for pages without our highlight script."""
+    snippet = (metadata.get('_best_sentence') or '').strip()
+    if not snippet:
+        matched = metadata.get('_matched_sentences') or []
+        snippet = (matched[0] if matched else (page_content or '')).strip()
+    snippet = re.sub(r'\s+', ' ', snippet).strip()
+    if len(snippet) < 12:
+        return ''
+
+    words = snippet.split(' ')
+    if len(words) <= 2 * _FRAGMENT_EDGE_WORDS:
+        return f":~:text={_encode_fragment_part(snippet)}"
+    # textStart,textEnd keeps the URL short and survives mid-passage edits.
+    start = ' '.join(words[:_FRAGMENT_EDGE_WORDS])
+    end = ' '.join(words[-_FRAGMENT_EDGE_WORDS:])
+    return f":~:text={_encode_fragment_part(start)},{_encode_fragment_part(end)}"
+
+
+def _build_native_fragment_link(
+    url: str,
+    fragment: str,
+    page_content: str,
+    metadata: dict,
+) -> str:
+    """Third-party page URL carrying a browser-native text fragment."""
+    text_fragment = _text_fragment(page_content, metadata)
+    if not text_fragment:
+        return url + fragment
+    # Syntax is ``#<element>:~:text=``, so an existing anchor stays intact.
+    return f"{url}{fragment}{text_fragment}" if fragment else f"{url}#{text_fragment}"
+
+
 def _source_card_deep_link(
     source: dict,
     query: str = None,
@@ -321,6 +373,11 @@ def build_deep_link_url(
     if PDF_PROXY_BASE_URL and _is_pdf_url(url):
         return _build_pdf_deep_link(url, page_content, metadata, title, query, deep_link_service)
 
+    # Third-party pages: our highlight script is not there to read
+    # ?diplo-deep-link-text=, so let the browser do the highlighting.
+    if not _host_runs_highlight_script(url):
+        return _build_native_fragment_link(url, fragment, page_content, metadata)
+
     # Build text
     matched_sents = metadata.get('_matched_sentences', [])
     deep_link_text = _build_deep_link_text(page_content, metadata, title, url)
@@ -386,6 +443,11 @@ def build_deep_link_urls_batch(
         # PDF sources: handle individually via chatbot-via proxy
         if PDF_PROXY_BASE_URL and _is_pdf_url(url):
             result[i + 1] = _build_pdf_deep_link(url, page_content, metadata, title, query, deep_link_service)
+            continue
+
+        # Third-party pages: browser-native highlight, see build_deep_link_url().
+        if not _host_runs_highlight_script(url):
+            result[i + 1] = _build_native_fragment_link(url, fragment, page_content, metadata)
             continue
 
         matched_sents = metadata.get('_matched_sentences', [])

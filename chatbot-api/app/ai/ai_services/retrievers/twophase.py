@@ -349,7 +349,9 @@ class TwoPhaseRetriever(BaseRetriever):
                     target_section_title = lht
                     break
 
-            title = doc_title(props)
+            from app.services.doc_title_service import display_title
+
+            title = display_title(props)
             metadata = {
                 "title": title,
                 "url": url,

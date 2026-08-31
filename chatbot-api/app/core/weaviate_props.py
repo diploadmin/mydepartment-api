@@ -210,6 +210,42 @@ def doc_title(props: Dict[str, Any]) -> str:
     return "Untitled"
 
 
+def has_real_title(props: Dict[str, Any]) -> bool:
+    """False when document_title is only an encoded URL or a hash (ingest dump)."""
+    raw = raw_document_title(props)
+    return bool(raw) and not _looks_like_url(raw) and not _looks_like_hash(raw)
+
+
+_JUNK_TITLE_RE = re.compile(
+    r"^(page|slide|figure|fig|table|chapter|section|part|image|contents?|index"
+    r"|abstract|introduction)\b[\s:.\-–]*\d*$",
+    re.IGNORECASE,
+)
+
+
+def title_from_full_text(full_text: str) -> str:
+    """First heading-like line of a stored document, skipping conversion artifacts."""
+    for line in (full_text or "").splitlines()[:20]:
+        candidate = line.strip()
+        if candidate.startswith("<!--"):
+            continue
+        # Drop markdown heading / emphasis markers around the text.
+        candidate = candidate.strip("#").strip().strip("*_").strip()
+        if len(candidate) < 3 or len(candidate) > 200:
+            continue
+        if _looks_like_url(candidate) or _looks_like_hash(candidate):
+            continue
+        if not re.search(r"[A-Za-z\u0400-\u04FF]", candidate):
+            continue
+        if _JUNK_TITLE_RE.match(candidate):
+            continue
+        # A title is a phrase; bare labels like "Notes" carry no information.
+        if len(candidate.split()) < 2 and len(candidate) < 12:
+            continue
+        return _clean_display_title(candidate)
+    return ""
+
+
 def present_source_fields(props: Dict[str, Any]) -> Tuple[str, str]:
     """Return (display_title, url) for frontend source cards."""
     return doc_title(props), doc_url(props)

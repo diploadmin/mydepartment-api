@@ -770,7 +770,9 @@ def build_paragraph_document(
             break
 
     best = target_paras[0] if target_paras else hybrid_best
-    title = doc_title(props)
+    from app.services.doc_title_service import display_title
+
+    title = display_title(props)
 
     metadata = {
         "title": title,

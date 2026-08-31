@@ -249,6 +249,15 @@ PDF_PROXY_BASE_URL:str = config("PDF_PROXY_BASE_URL", cast=str, default="")
 # Empty = feature off (such sources stay unlinked).
 DOC_VIEWER_BASE_URL:str = config("DOC_VIEWER_BASE_URL", cast=str, default="")
 
+# Hosts that serve the Diplo highlight script and therefore understand
+# ?diplo-deep-link-text=. Third-party pages get a browser-native #:~:text=
+# fragment instead, since our script is not there to read the query param.
+HIGHLIGHT_SCRIPT_HOSTS:list = config(
+    "HIGHLIGHT_SCRIPT_HOSTS",
+    cast=lambda v: [h.strip().lower() for h in v.split(",") if h.strip()],
+    default="diplomacy.edu",
+)
+
 # Related Questions Model Configuration
 # Provider: 'openai', 'local', or 'deepseek'
 RELATED_QUESTIONS_PROVIDER:str = config("RELATED_QUESTIONS_PROVIDER", cast=str, default="openai")
