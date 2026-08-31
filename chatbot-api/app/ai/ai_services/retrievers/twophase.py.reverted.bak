@@ -1,0 +1,405 @@
+"""
+TwoPhaseRetriever — URL discovery + parallel section selection.
+
+Phase 1 (fast):
+  a) Hybrid search on DiploParagraph
+  c) Aggregate scores per URL → top k_urls
+
+Phase 2 (parallel + batched):
+  For each top URL: parallel fetch all paragraphs, group by section,
+  batch-embed titles, select best section, build documents.
+"""
+
+import time
+from collections import defaultdict
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from typing import List, Dict
+
+import weaviate
+from langchain_core.callbacks import CallbackManagerForRetrieverRun
+from langchain_core.documents import Document
+from langchain_core.embeddings import Embeddings
+from langchain_core.retrievers import BaseRetriever
+from weaviate.classes.query import Filter, MetadataQuery
+
+from app.core.config import (
+    HYBRID_ALPHA,
+)
+from app.core.retrieval_context import get_param
+from app.ai.ai_services.label_weights import POST_TYPE_TO_LABEL
+from app.ai.ai_services.retrievers.utils import (
+    clean_sentence_text,
+    aggregate_scores,
+    resolve_parent_document_hash,
+    resolve_collection_name,
+    visibility_filter,
+    post_types_filter,
+    append_content_filters,
+    MAX_SECTION_LEN,
+)
+
+
+class TwoPhaseRetriever(BaseRetriever):
+    """
+    Two-phase retriever:
+    Phase 1 — URL Discovery via hybrid search + heading boost
+    Phase 2 — Parallel fetch + section selection + document building
+    """
+    client: weaviate.WeaviateClient
+    embeddings: Embeddings
+    paragraph_index: str = "DiploParagraph"
+    k_urls: int = 30
+    vector_limit: int = 200
+    user_type: str = "general"
+
+    model_config = {"arbitrary_types_allowed": True}
+
+    def set_user_type(self, user_type: str):
+        self.user_type = user_type.lower() if user_type else "general"
+        print(f"DEBUG: TwoPhaseRetriever user_type set to: {self.user_type}", flush=True)
+
+    def _get_relevant_documents(
+        self, query: str, *, run_manager: CallbackManagerForRetrieverRun
+    ) -> List[Document]:
+        query_vector = self.embeddings.embed_query(query)
+        effective_para_index = resolve_collection_name(self.paragraph_index)
+        collection = self.client.collections.get(effective_para_index)
+
+        # PHASE 1a — Hybrid search
+        _combined_filter = visibility_filter()
+        _site_name = get_param('site_filter_name', None)
+
+        _parent_name = get_param('parent_filter_name', None)
+        if _parent_name:
+            _parent_hash = resolve_parent_document_hash(self.client, _parent_name, site_name=_site_name)
+            if _parent_hash:
+                _combined_filter = _combined_filter & Filter.by_property("parent_document_hash").equal(_parent_hash)
+        if _site_name:
+            _sf = Filter.by_property("site").equal(_site_name)
+            _combined_filter = _combined_filter & _sf
+            print(f"DEBUG: site_filter ACTIVE for '{_site_name}'", flush=True)
+
+        _post_types = get_param('post_types', None)
+        _pt_filter = post_types_filter(_post_types)
+        if _pt_filter is not None:
+            _combined_filter = _combined_filter & _pt_filter
+            print(f"DEBUG: post_types filter ACTIVE for {_post_types}", flush=True)
+
+        _combined_filter = append_content_filters(_combined_filter, effective_para_index)
+
+        try:
+            vector_results = collection.query.hybrid(
+                query=query,
+                vector=query_vector,
+                alpha=HYBRID_ALPHA,
+                limit=self.vector_limit,
+                filters=_combined_filter,
+                query_properties=["text"],
+                return_metadata=["score"],
+            )
+        except Exception as e:
+            print(f"WARNING: TwoPhase hybrid search failed: {e}", flush=True)
+            vector_results = type("R", (), {"objects": []})()
+
+        # Build url_groups
+        url_groups: Dict[str, dict] = {}
+        for obj in vector_results.objects:
+            props = obj.properties
+            url = props.get("link", "")
+            text = props.get("text", "")
+            if not url or not text:
+                continue
+            score = obj.metadata.score if obj.metadata else 0.0
+
+            section = props.get("section") or "general"
+            post_type = (props.get("post_type") or "").lower()
+            label = POST_TYPE_TO_LABEL.get(post_type, post_type.capitalize())
+
+            if url not in url_groups:
+                url_groups[url] = {
+                    "paragraphs": [],
+                    "sections": {},
+                    "props": props,
+                    "post_type": post_type,
+                    "label": label,
+                    "source": "vector",
+                }
+
+            para_entry = {
+                "text": text, "score": score,
+                "h2": props.get("h2") or "",
+                "section": section,
+                "last_h_title": props.get("last_h_title") or "",
+            }
+            url_groups[url]["paragraphs"].append(para_entry)
+            if section not in url_groups[url]["sections"]:
+                url_groups[url]["sections"][section] = []
+            url_groups[url]["sections"][section].append(para_entry)
+
+        print(f"DEBUG: TwoPhase P1a — vector search: {len(vector_results.objects)} paragraphs → "
+              f"{len(url_groups)} unique URLs", flush=True)
+
+        # Calculate aggregate scores
+        for url, group in url_groups.items():
+            paras = group["paragraphs"]
+            if paras:
+                scores = sorted([p["score"] for p in paras], reverse=True)
+                agg = aggregate_scores(scores)
+                group["best_para"] = max(paras, key=lambda p: p["score"])
+            else:
+                agg = 0.0
+                group["best_para"] = {"text": "", "score": 0, "h2": "",
+                                       "section": "general", "last_h_title": ""}
+
+            group["aggregate_score"] = agg
+            group["_agg_raw"] = agg
+            group["_heading_boost"] = 0.0
+            group["match_count"] = len(paras)
+
+            best_section_name = "general"
+            best_section_score = 0
+            for sec_name, sec_paras in group["sections"].items():
+                sec_score = sum(p["score"] for p in sec_paras)
+                if sec_score > best_section_score:
+                    best_section_score = sec_score
+                    best_section_name = sec_name
+            group["best_section"] = best_section_name
+
+        sorted_groups = sorted(url_groups.items(),
+                               key=lambda x: x[1]["aggregate_score"], reverse=True)
+
+        print(f"DEBUG: TwoPhase P1c — top URLs:", flush=True)
+        for i, (url, group) in enumerate(sorted_groups[:15], 1):
+            raw = group.get("_agg_raw", group["aggregate_score"])
+            hb = group.get("_heading_boost", 0.0)
+            total = group["aggregate_score"]
+            pt = group.get("post_type", "")
+            marker = f" [TOPIC]" if pt == "topic" else ""
+            print(f"DEBUG:   #{i:2d}: total={total:.4f} (agg={raw:.4f} + h_boost={hb:.4f}) "
+                  f"hits={group['match_count']:2d} {pt:12s} {url[:60]}{marker}", flush=True)
+
+        # PHASE 2 — Section selection + document building
+        selected_groups = sorted_groups[:self.k_urls]
+
+        # PASS 1: Parallel Weaviate fetch
+        t_p2_start = time.time()
+
+        def _fetch_url_paras(fetch_url):
+            try:
+                result = collection.query.fetch_objects(
+                    filters=Filter.by_property("link").equal(fetch_url),
+                    limit=200,
+                    return_properties=["text", "h2", "section",
+                                       "paragraph_index", "last_h_title"],
+                )
+                return [
+                    {"text": obj.properties.get("text") or "",
+                     "h2": obj.properties.get("h2") or "",
+                     "section": obj.properties.get("section") or "general",
+                     "paragraph_index": obj.properties.get("paragraph_index") or 0,
+                     "last_h_title": obj.properties.get("last_h_title") or ""}
+                    for obj in result.objects
+                    if obj.properties.get("text")
+                ]
+            except Exception as e:
+                print(f"DEBUG: TwoPhase secondary fetch failed for {fetch_url[:60]}: {e}", flush=True)
+                return None
+
+        url_fetched = {}
+        with ThreadPoolExecutor(max_workers=20) as executor:
+            future_to_url = {
+                executor.submit(_fetch_url_paras, url): url
+                for url, group in selected_groups
+            }
+            for future in as_completed(future_to_url):
+                url = future_to_url[future]
+                try:
+                    url_fetched[url] = future.result()
+                except Exception:
+                    url_fetched[url] = None
+
+        t_p2_fetch = time.time()
+        print(f"DEBUG: TwoPhase P2 fetch: {t_p2_fetch - t_p2_start:.2f}s "
+              f"({len(url_fetched)} URLs)", flush=True)
+
+        # PASS 2: Group sections + batch embed section titles
+        url_data = {}
+        all_titles = []
+        title_index = []
+        embed_needed_urls = 0
+
+        for url, group in selected_groups:
+            fetched_paras = url_fetched.get(url)
+            if fetched_paras is None:
+                fetched_paras = [
+                    {"text": p["text"], "h2": p.get("h2", ""),
+                     "section": p.get("section", "general"),
+                     "paragraph_index": 0,
+                     "last_h_title": p.get("last_h_title", "")}
+                    for p in group["paragraphs"]
+                ]
+
+            section_paras = defaultdict(list)
+            for p in fetched_paras:
+                section_paras[p.get("section") or "general"].append(p)
+            for sec_name in section_paras:
+                section_paras[sec_name].sort(key=lambda p: p.get("paragraph_index", 0))
+
+            eligible = []
+            for sec_name, sec_ps in section_paras.items():
+                sec_text = "\n\n".join(p["text"] for p in sec_ps if p["text"])
+                if len(sec_text) < 200:
+                    continue
+                title = (sec_ps[0].get("last_h_title") or "").strip()
+                if not title:
+                    title = sec_text[:150]
+                eligible.append((sec_name, title))
+
+            if len(eligible) > 1:
+                embed_needed_urls += 1
+                for sec_name, title in eligible:
+                    all_titles.append(title)
+                    title_index.append((url, sec_name))
+
+            url_data[url] = {
+                "section_paras": dict(section_paras),
+                "eligible": eligible,
+                "fetched_count": len(fetched_paras),
+                "group": group,
+            }
+
+        # Batch embed remaining section titles
+        all_vectors = []
+        if all_titles:
+            try:
+                EMBED_BATCH = 30
+                for start in range(0, len(all_titles), EMBED_BATCH):
+                    batch = all_titles[start:start + EMBED_BATCH]
+                    batch_vecs = self.embeddings.embed_documents(batch)
+                    all_vectors.extend(batch_vecs)
+            except Exception as e:
+                print(f"DEBUG: TwoPhase batch embed failed: {e}", flush=True)
+                all_vectors = []
+
+        t_p2_embed = time.time()
+        n_batches = (len(all_titles) + 29) // 30 if all_titles else 0
+        print(f"DEBUG: TwoPhase P2 section select: "
+              f"{embed_needed_urls} URLs need embedding "
+              f"({len(all_titles)} titles in {n_batches} batches, "
+              f"{t_p2_embed - t_p2_fetch:.2f}s)", flush=True)
+
+        # PASS 3: Section selection + document building
+        url_sec_vectors = defaultdict(dict)
+        for i, (url, sec_name) in enumerate(title_index):
+            if i < len(all_vectors):
+                url_sec_vectors[url][sec_name] = all_vectors[i]
+
+        q_norm = sum(x * x for x in query_vector) ** 0.5
+
+        documents = []
+        for url, group in selected_groups:
+            data = url_data.get(url)
+            if not data:
+                continue
+            section_paras = data["section_paras"]
+            eligible = data["eligible"]
+            fetched_count = data["fetched_count"]
+            props = group["props"]
+            best_section = group["best_section"]
+
+            target_section = best_section
+            target_paras = section_paras.get(target_section, [])
+            section_text = "\n\n".join(p["text"] for p in target_paras if p["text"])
+
+            sec_vectors = url_sec_vectors.get(url, {})
+            if len(sec_vectors) > 1:
+                best_sim = -1.0
+                best_sec_name = target_section
+                for sec_name, tv in sec_vectors.items():
+                    dot = sum(a * b for a, b in zip(query_vector, tv))
+                    t_norm = sum(x * x for x in tv) ** 0.5
+                    sim = dot / (q_norm * t_norm) if q_norm and t_norm else 0.0
+                    if sim > best_sim:
+                        best_sim = sim
+                        best_sec_name = sec_name
+                if best_sec_name != target_section:
+                    target_section = best_sec_name
+                    target_paras = section_paras.get(target_section, [])
+                    section_text = "\n\n".join(
+                        p["text"] for p in target_paras if p["text"])
+            elif len(eligible) == 1:
+                only_sec = eligible[0][0]
+                if only_sec != target_section:
+                    target_section = only_sec
+                    target_paras = section_paras.get(target_section, [])
+                    section_text = "\n\n".join(
+                        p["text"] for p in target_paras if p["text"])
+
+            if len(section_text) > MAX_SECTION_LEN:
+                section_text = section_text[:MAX_SECTION_LEN] + "..."
+
+            best_para_text = group["best_para"].get("text", "") if group["best_para"] else ""
+            content = section_text if section_text else best_para_text
+            if not content:
+                continue
+            best = target_paras[0] if target_paras else group["best_para"]
+
+            target_section_title = ""
+            for tp in target_paras:
+                lht = tp.get("last_h_title", "")
+                if lht:
+                    target_section_title = lht
+                    break
+
+            metadata = {
+                "title": props.get("h1") or props.get("name") or "",
+                "url": url,
+                "date": str(props.get("date") or ""),
+                "label": group["label"],
+                "post_type": group["post_type"],
+                "h1": props.get("h1") or "",
+                "h2": best.get("h2", ""),
+                "h3": props.get("h3") or "",
+                "section": target_section,
+                "strong_heading": props.get("strong_heading") or "",
+                "_index": self.paragraph_index,
+                "_best_sentence": clean_sentence_text((group["best_para"].get("text", "") or "")[:200]),
+                "_best_sentence_score": group["best_para"].get("score", 0) if group["best_para"] else 0,
+                "_aggregate_score": group["aggregate_score"],
+                "_matched_paragraphs": group["match_count"],
+                "_fetched_paragraphs": fetched_count,
+                "_section": target_section,
+                "_section_title": target_section_title,
+                "_num_sections": len(section_paras),
+                "_source": f"twophase_{group.get('source', 'vector')}",
+                "_label_weight": 1.0,
+                "_final_score": group["aggregate_score"],
+            }
+
+            documents.append(Document(page_content=content, metadata=metadata))
+
+        t_p2_end = time.time()
+        print(f"DEBUG: TwoPhase P2 build: {t_p2_end - t_p2_embed:.2f}s "
+              f"({len(documents)} docs)", flush=True)
+        print(f"DEBUG: TwoPhase P2 total: {t_p2_end - t_p2_start:.2f}s", flush=True)
+
+        print(f"DEBUG: TwoPhase — {len(url_groups)} URLs → top {len(documents)} documents", flush=True)
+        milestone_positions = {1, 5, 10, 20, 30, 40, 50, 60, 70, 80, 100, len(documents)}
+        for i, doc in enumerate(documents):
+            m = doc.metadata
+            url = m.get('url', '')
+            pos = i + 1
+            is_dd = '/topics/digital-diplomacy/' in url
+            is_topic = m.get('post_type', '') == 'topic'
+            agg = m.get('_aggregate_score', 0)
+            if pos in milestone_positions or is_dd or is_topic:
+                marker = ""
+                if is_dd:
+                    marker = f" *** DD (boosted={agg*2.2:.4f}) ***"
+                elif is_topic:
+                    marker = f" [topic, boosted={agg*2.2:.4f}]"
+                print(f"DEBUG:   pre-reranker #{pos}: [{agg:.4f}] "
+                      f"{m.get('label','')} | {m.get('title','')[:40]} | "
+                      f"{url[:55]}{marker}", flush=True)
+
+        return documents

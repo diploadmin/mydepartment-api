@@ -1,0 +1,10 @@
+"""Weaviate collection names for contextual-only deployment."""
+
+DOCUMENT = "DiploDocument_contextual"
+PARAGRAPH = "DiploParagraph_contextual"
+CHUNK = "DiploChunk_contextual"
+TURN = "DiploTurn_contextual"
+# DiploHeading has no _contextual variant in Weaviate schema
+HEADING = "DiploHeading"
+
+ALL_DATA_COLLECTIONS = (DOCUMENT, PARAGRAPH, CHUNK, TURN)

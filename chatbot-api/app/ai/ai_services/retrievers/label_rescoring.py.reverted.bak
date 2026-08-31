@@ -1,0 +1,123 @@
+"""
+LabelRescoringRetriever — paragraph-level hybrid search with label scoring.
+
+Simple retriever that fetches from multiple Weaviate collections,
+deduplicates by content hash, and returns top N results.
+Label re-scoring is applied post-reranker in the graph pipeline.
+"""
+
+from typing import List
+
+import weaviate
+from langchain_core.callbacks import CallbackManagerForRetrieverRun
+from langchain_core.documents import Document
+from langchain_core.embeddings import Embeddings
+from langchain_core.retrievers import BaseRetriever
+
+from app.core.config import HYBRID_ALPHA
+from app.core.retrieval_context import get_param
+from app.ai.ai_services.label_weights import get_label_weights
+from app.ai.ai_services.retrievers.utils import (
+    resolve_parent_document_hash,
+    resolve_collection_name,
+    visibility_filter,
+    append_content_filters,
+)
+from weaviate.classes.query import Filter
+
+
+class LabelRescoringRetriever(BaseRetriever):
+    """
+    Paragraph-level retriever that fetches from multiple Weaviate collections
+    and deduplicates results. Label weights are applied post-reranker.
+    """
+    client: weaviate.WeaviateClient
+    embeddings: Embeddings
+    index_names: List[str]
+    k_per_index: int = 50
+    final_k: int = 8
+    alpha: float = HYBRID_ALPHA
+    user_type: str = "general"
+
+    model_config = {"arbitrary_types_allowed": True}
+
+    def set_user_type(self, user_type: str):
+        self.user_type = user_type.lower() if user_type else "general"
+        print(f"DEBUG: LabelRescoringRetriever user_type set to: {self.user_type}", flush=True)
+
+    def _get_relevant_documents(
+        self, query: str, *, run_manager: CallbackManagerForRetrieverRun
+    ) -> List[Document]:
+        query_vector = self.embeddings.embed_query(query)
+
+        label_weights = get_label_weights(self.user_type)
+        print(f"DEBUG: Using profile '{self.user_type}' with weights: "
+              f"Topic={label_weights.get('Topic', 1.0)}, "
+              f"Courses={label_weights.get('Courses', 1.0)}, "
+              f"Blog={label_weights.get('Blog', 1.0)}", flush=True)
+
+        _combined_filter = visibility_filter()
+        _site_name = get_param('site_filter_name', None)
+
+        _parent_name = get_param('parent_filter_name', None)
+        if _parent_name:
+            _parent_hash = resolve_parent_document_hash(self.client, _parent_name, site_name=_site_name)
+            if _parent_hash:
+                _combined_filter = _combined_filter & Filter.by_property("parent_document_hash").equal(_parent_hash)
+        if _site_name:
+            _sf = Filter.by_property("site").equal(_site_name)
+            _combined_filter = _combined_filter & _sf
+            print(f"DEBUG: site_filter ACTIVE for '{_site_name}'", flush=True)
+
+        all_docs_with_scores = []
+
+        for index_name in self.index_names:
+            effective_name = resolve_collection_name(index_name)
+            _query_filter = append_content_filters(_combined_filter, effective_name)
+            collection = self.client.collections.get(effective_name)
+            results = collection.query.hybrid(
+                query=query,
+                vector=query_vector,
+                alpha=self.alpha,
+                limit=self.k_per_index,
+                filters=_query_filter,
+                query_properties=["text"],
+                return_metadata=["score"]
+            )
+
+            for obj in results.objects:
+                props = obj.properties
+                original_score = obj.metadata.score if obj.metadata else 0.0
+                label = props.get("label", "")
+
+                metadata = {
+                    "title": props.get("title") or props.get("name", ""),
+                    "date": props.get("date", ""),
+                    "url": props.get("url") or props.get("link", ""),
+                    "label": label,
+                    "_node_content": props.get("_node_content", ""),
+                    "questions_this_excerpt_can_answer": props.get("questions_this_excerpt_can_answer", ""),
+                    "_original_score": original_score,
+                    "_label_weight": 1.0,
+                    "_rescored": original_score,
+                    "_index": index_name,
+                    "_user_type": self.user_type,
+                }
+
+                doc = Document(
+                    page_content=props.get("text", ""),
+                    metadata=metadata
+                )
+                all_docs_with_scores.append((doc, original_score))
+
+        all_docs_with_scores.sort(key=lambda x: x[1], reverse=True)
+
+        seen_content = set()
+        unique_docs_with_scores = []
+        for doc, score in all_docs_with_scores:
+            content_hash = hash(doc.page_content)
+            if content_hash not in seen_content:
+                seen_content.add(content_hash)
+                unique_docs_with_scores.append((doc, score))
+
+        return [doc for doc, score in unique_docs_with_scores[:self.final_k]]

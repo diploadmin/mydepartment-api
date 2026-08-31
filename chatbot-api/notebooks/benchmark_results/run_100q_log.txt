@@ -1,0 +1,536 @@
+/root/.cache/pypoetry/virtualenvs/diplomacy-edu-chatbot-api-OinSWiOQ-py3.12/lib/python3.12/site-packages/starlette/config.py:60: UserWarning: Config file '.env' not found.
+  warnings.warn(f"Config file '{env_file}' not found.")
+MongoDB: 272 total messages, 159 unique (>10 chars)
+
+======================================================================
+  Graph RAG A/B Benchmark — 100 questions
+  Judge: ON
+======================================================================
+
+Connecting to Weaviate... OK (ready=True)
+Connecting to Neo4j... OK (healthy=True)
+Initializing embeddings... OK
+
+[1/100] give me serbia trade agreements
+  BASELINE  retr=0.07s llm=3.87s total=3.95s
+  GRAPH     retr=0.05s exp=0.13s llm=3.87s total=4.05s expanded=0
+  JUDGE     winner=baseline
+
+[2/100] What is AI governance?
+  BASELINE  retr=0.08s llm=2.35s total=2.43s
+  GRAPH     retr=0.09s exp=0.18s llm=1.64s total=1.91s expanded=1
+  JUDGE     winner=baseline
+
+[3/100] What are india AI policies?
+  BASELINE  retr=0.09s llm=7.01s total=7.09s
+  GRAPH     retr=0.08s exp=0.16s llm=5.57s total=5.81s expanded=0
+  JUDGE     winner=baseline
+
+[4/100] what is AI diplomacy?
+  BASELINE  retr=0.08s llm=2.18s total=2.26s
+  GRAPH     retr=0.08s exp=0.20s llm=2.20s total=2.48s expanded=5
+  JUDGE     winner=graph
+
+[5/100] The Mediterranean Academy of Diplomacy has recently organised two inte
+  BASELINE  retr=0.09s llm=1.21s total=1.30s
+  GRAPH     retr=0.09s exp=0.09s llm=1.08s total=1.27s expanded=1
+  JUDGE     winner=baseline
+
+[6/100] report state of the internet in 2018
+  BASELINE  retr=0.08s llm=5.38s total=5.45s
+  GRAPH     retr=0.08s exp=0.10s llm=6.06s total=6.24s expanded=1
+  JUDGE     winner=baseline
+
+[7/100] give me romania agreements
+  BASELINE  retr=0.07s llm=3.54s total=3.61s
+  GRAPH     retr=0.06s exp=0.06s llm=1.65s total=1.77s expanded=0
+  JUDGE     winner=baseline
+
+[8/100] multistakeholder platform, convening policymakers
+  BASELINE  retr=0.06s llm=2.56s total=2.63s
+  GRAPH     retr=0.07s exp=0.08s llm=2.65s total=2.80s expanded=0
+  JUDGE     winner=graph
+
+[9/100] give me trade agreements between serbia and eu
+  BASELINE  retr=0.08s llm=3.14s total=3.22s
+  GRAPH     retr=0.08s exp=0.06s llm=1.56s total=1.70s expanded=0
+  JUDGE     winner=baseline
+
+[10/100] Will Geneva host AI summit next year?
+  BASELINE  retr=0.07s llm=1.67s total=1.74s
+  GRAPH     retr=0.07s exp=0.07s llm=1.28s total=1.42s expanded=0
+  JUDGE     winner=TIE
+
+[11/100] what is serbia agreemnets
+  BASELINE  retr=0.06s llm=4.73s total=4.79s
+  GRAPH     retr=0.06s exp=0.06s llm=5.48s total=5.60s expanded=0
+  JUDGE     winner=baseline
+
+[12/100] What is Diplos position on AI governance?
+  BASELINE  retr=0.09s llm=4.41s total=4.49s
+  GRAPH     retr=0.08s exp=0.10s llm=4.04s total=4.22s expanded=3
+  JUDGE     winner=graph
+
+[13/100] give me serbian trade agreements
+  BASELINE  retr=0.07s llm=4.65s total=4.72s
+  GRAPH     retr=0.06s exp=0.08s llm=5.12s total=5.27s expanded=0
+  JUDGE     winner=baseline
+
+[14/100] What key point did Dr. Vella emphasize in his speech?
+  BASELINE  retr=0.08s llm=0.77s total=0.85s
+  GRAPH     retr=0.08s exp=0.13s llm=0.77s total=0.98s expanded=0
+  JUDGE     winner=TIE
+
+[15/100] who is jovan kurbalija?
+  BASELINE  retr=0.06s llm=0.68s total=0.74s
+  GRAPH     retr=0.07s exp=0.07s llm=0.52s total=0.66s expanded=0
+  JUDGE     winner=TIE
+
+[16/100] IETF 126 meeting will take place
+  BASELINE  retr=0.06s llm=1.60s total=1.67s
+  GRAPH     retr=0.07s exp=0.08s llm=1.11s total=1.26s expanded=0
+  JUDGE     winner=baseline
+
+[17/100] digital diplomacy
+  BASELINE  retr=0.06s llm=3.15s total=3.21s
+  GRAPH     retr=0.07s exp=0.09s llm=5.49s total=5.64s expanded=5
+  JUDGE     winner=graph
+
+[18/100] what did Dr. George F. Vella said in opening ceremony
+  BASELINE  retr=0.08s llm=1.32s total=1.40s
+  GRAPH     retr=0.08s exp=0.10s llm=1.43s total=1.61s expanded=1
+  JUDGE     winner=TIE
+
+[19/100] ITU’s core mandate is to ‘ensure networks and technologies
+  BASELINE  retr=0.09s llm=2.61s total=2.69s
+  GRAPH     retr=0.08s exp=0.07s llm=2.98s total=3.13s expanded=0
+  JUDGE     winner=baseline
+
+[20/100] are you part of diplo foundation?
+  BASELINE  retr=0.07s llm=1.77s total=1.84s
+  GRAPH     retr=0.07s exp=0.09s llm=2.16s total=2.32s expanded=1
+  JUDGE     winner=graph
+
+[21/100] what did Dr. George F. Vella  said in opening ceremony
+  BASELINE  retr=0.07s llm=1.24s total=1.31s
+  GRAPH     retr=0.06s exp=0.10s llm=1.08s total=1.24s expanded=1
+  JUDGE     winner=baseline
+
+[22/100] multistakeholder platform for dialogue
+  BASELINE  retr=0.06s llm=5.58s total=5.64s
+  GRAPH     retr=0.07s exp=0.07s llm=3.40s total=3.54s expanded=0
+  JUDGE     winner=baseline
+
+[23/100] who is sorina teleanu?
+  BASELINE  retr=0.07s llm=3.91s total=3.98s
+  GRAPH     retr=0.07s exp=0.13s llm=4.24s total=4.44s expanded=4
+  JUDGE     winner=graph
+
+[24/100] what is digital diplomacy?
+  BASELINE  retr=0.08s llm=3.15s total=3.22s
+  GRAPH     retr=0.07s exp=0.10s llm=1.33s total=1.50s expanded=5
+  JUDGE     winner=baseline
+
+[25/100] What is Norvegian covid policy?
+  BASELINE  retr=0.07s llm=1.24s total=1.31s
+  GRAPH     retr=0.06s exp=0.06s llm=1.36s total=1.48s expanded=0
+  JUDGE     winner=TIE
+
+[26/100] ITU supports work on ICT
+  BASELINE  retr=0.07s llm=1.58s total=1.65s
+  GRAPH     retr=0.07s exp=0.06s llm=1.82s total=1.95s expanded=0
+  JUDGE     winner=graph
+
+[27/100] what is ping pong diplomacy?
+  BASELINE  retr=0.06s llm=2.30s total=2.36s
+  GRAPH     retr=0.06s exp=0.12s llm=1.83s total=2.01s expanded=5
+  JUDGE     winner=TIE
+
+[28/100] organised by Paradigm Initiative
+  BASELINE  retr=0.06s llm=6.91s total=6.98s
+  GRAPH     retr=0.07s exp=0.07s llm=7.01s total=7.15s expanded=0
+  JUDGE     winner=baseline
+
+[29/100] What was one of the large programs for tackling the economic consequen
+  BASELINE  retr=0.08s llm=1.32s total=1.41s
+  GRAPH     retr=0.08s exp=0.07s llm=1.20s total=1.35s expanded=0
+  JUDGE     winner=TIE
+
+[30/100] je veux des information
+  BASELINE  retr=0.10s llm=2.23s total=2.32s
+  GRAPH     retr=0.08s exp=0.07s llm=2.09s total=2.24s expanded=0
+  JUDGE     winner=baseline
+
+[31/100] who is jovan kurbalija ?
+  BASELINE  retr=0.06s llm=1.92s total=1.99s
+  GRAPH     retr=0.06s exp=0.09s llm=2.74s total=2.90s expanded=2
+  JUDGE     winner=graph
+
+[32/100] The Internet Corporation for Assigned Names and Numbers (ICANN) will h
+  BASELINE  retr=0.60s llm=1.49s total=2.10s
+  GRAPH     retr=0.09s exp=0.14s llm=1.47s total=1.70s expanded=1
+  JUDGE     winner=TIE
+
+[33/100] what is india ai impact summit 2026?
+  BASELINE  retr=0.07s llm=2.91s total=2.99s
+  GRAPH     retr=0.07s exp=0.07s llm=2.66s total=2.80s expanded=0
+  JUDGE     winner=baseline
+
+[34/100] what is Initial reactions from within the UN system and the contestati
+  BASELINE  retr=0.09s llm=3.32s total=3.40s
+  GRAPH     retr=0.09s exp=0.09s llm=3.77s total=3.95s expanded=2
+  JUDGE     winner=graph
+
+[35/100] What are trade agreements solutions for WTO issues?
+  BASELINE  retr=0.08s llm=7.42s total=7.50s
+  GRAPH     retr=0.07s exp=0.09s llm=6.07s total=6.24s expanded=0
+  JUDGE     winner=baseline
+
+[36/100] what is india ai politics?
+  BASELINE  retr=0.08s llm=9.15s total=9.22s
+  GRAPH     retr=0.07s exp=0.07s llm=4.43s total=4.56s expanded=0
+  JUDGE     winner=baseline
+
+[37/100] Building Inclusive and Resilient Digital Futures
+  BASELINE  retr=0.07s llm=7.16s total=7.23s
+  GRAPH     retr=0.07s exp=0.07s llm=8.35s total=8.48s expanded=0
+  JUDGE     winner=baseline
+
+[38/100] tell me something about digitalization in norway during covid
+  BASELINE  retr=0.07s llm=4.54s total=4.61s
+  GRAPH     retr=0.07s exp=0.07s llm=4.77s total=4.91s expanded=0
+  JUDGE     winner=graph
+
+[39/100] tell me something about india ai strategy
+  BASELINE  retr=0.08s llm=7.68s total=7.76s
+  GRAPH     retr=0.08s exp=0.10s llm=6.09s total=6.27s expanded=0
+  JUDGE     winner=graph
+
+[40/100] who was speaking about ClimateVerse?
+  BASELINE  retr=0.07s llm=1.16s total=1.23s
+  GRAPH     retr=0.07s exp=0.07s llm=1.35s total=1.49s expanded=0
+  JUDGE     winner=graph
+
+[41/100] uman rights defenders, students, a
+  BASELINE  retr=0.06s llm=2.74s total=2.80s
+  GRAPH     retr=0.07s exp=0.07s llm=3.75s total=3.89s expanded=0
+  JUDGE     winner=graph
+
+[42/100] Tell me about the history of Geneva Internet Platform
+  BASELINE  retr=0.07s llm=6.88s total=6.95s
+  GRAPH     retr=0.07s exp=0.11s llm=7.44s total=7.62s expanded=5
+  JUDGE     winner=baseline
+
+[43/100] How does AI affect international negotiations?
+  BASELINE  retr=0.09s llm=3.91s total=4.00s
+  GRAPH     retr=0.08s exp=0.11s llm=5.51s total=5.71s expanded=3
+  JUDGE     winner=TIE
+
+[44/100] who is Aleksandar Stankovic?
+  BASELINE  retr=0.06s llm=0.83s total=0.89s
+  GRAPH     retr=0.06s exp=0.11s llm=0.88s total=1.05s expanded=4
+  JUDGE     winner=TIE
+
+[45/100] What is India AI policy
+  BASELINE  retr=0.08s llm=6.71s total=6.79s
+  GRAPH     retr=0.08s exp=0.08s llm=7.32s total=7.49s expanded=0
+  JUDGE     winner=graph
+
+[46/100] what is india ai impact summit?
+  BASELINE  retr=0.07s llm=2.33s total=2.40s
+  GRAPH     retr=0.07s exp=0.07s llm=1.99s total=2.13s expanded=0
+  JUDGE     winner=graph
+
+[47/100] The 19th Latin American and Caribbean
+  BASELINE  retr=0.06s llm=1.15s total=1.22s
+  GRAPH     retr=0.06s exp=0.09s llm=1.43s total=1.58s expanded=0
+  JUDGE     winner=TIE
+
+[48/100] What are fisheries provisions in trade agrreement of relevance for WTO
+  BASELINE  retr=0.07s llm=10.71s total=10.78s
+  GRAPH     retr=0.07s exp=0.10s llm=13.08s total=13.25s expanded=0
+  JUDGE     winner=TIE
+
+[49/100] Importantly, unlike traditional organisations, it has no formal member
+  BASELINE  retr=0.12s llm=2.83s total=2.95s
+  GRAPH     retr=0.12s exp=0.07s llm=4.74s total=4.92s expanded=0
+  JUDGE     winner=graph
+
+[50/100] what was norvegian policy during covid?
+  BASELINE  retr=0.07s llm=5.77s total=5.84s
+  GRAPH     retr=0.07s exp=0.06s llm=4.26s total=4.39s expanded=0
+  JUDGE     winner=TIE
+
+[51/100] what are AI assistant of Diplo Foundation? Which one was used to track
+  BASELINE  retr=0.12s llm=6.14s total=6.26s
+  GRAPH     retr=0.12s exp=0.10s llm=3.59s total=3.81s expanded=3
+  JUDGE     winner=baseline
+
+[52/100] building trusting AI
+  BASELINE  retr=0.07s llm=5.83s total=5.90s
+  GRAPH     retr=0.07s exp=0.07s llm=6.17s total=6.30s expanded=0
+  JUDGE     winner=baseline
+
+[53/100] was DiploFoundation participant in india ai summit?
+  BASELINE  retr=0.06s llm=1.78s total=1.84s
+  GRAPH     retr=0.07s exp=0.09s llm=3.23s total=3.40s expanded=1
+  JUDGE     winner=graph
+
+[54/100] How does ECMAScript differ from JavaScript?
+  BASELINE  retr=0.07s llm=5.54s total=5.61s
+  GRAPH     retr=0.07s exp=0.07s llm=4.49s total=4.62s expanded=0
+  JUDGE     winner=baseline
+
+[55/100] building trusted ai
+  BASELINE  retr=0.07s llm=6.70s total=6.76s
+  GRAPH     retr=0.06s exp=0.06s llm=7.24s total=7.36s expanded=0
+  JUDGE     winner=TIE
+
+[56/100] give me US trade agreements
+  BASELINE  retr=0.07s llm=3.99s total=4.06s
+  GRAPH     retr=0.07s exp=0.07s llm=4.92s total=5.06s expanded=0
+  JUDGE     winner=baseline
+
+[57/100] How did US intelligence reforms shape data governance?
+  BASELINE  retr=0.09s llm=1.22s total=1.31s
+  GRAPH     retr=0.09s exp=0.09s llm=1.02s total=1.20s expanded=2
+  JUDGE     winner=baseline
+
+[58/100] The European Dialogue on Internet Governance (EuroDIG) will be held in
+  BASELINE  retr=0.11s llm=1.39s total=1.50s
+  GRAPH     retr=0.11s exp=0.12s llm=1.95s total=2.18s expanded=1
+  JUDGE     winner=TIE
+
+[59/100] internet standardization
+  BASELINE  retr=0.06s llm=5.02s total=5.09s
+  GRAPH     retr=0.06s exp=0.09s llm=6.51s total=6.66s expanded=2
+  JUDGE     winner=graph
+
+[60/100] what is digital diplomacy??
+  BASELINE  retr=0.08s llm=2.80s total=2.88s
+  GRAPH     retr=0.08s exp=0.09s llm=1.82s total=1.99s expanded=5
+  JUDGE     winner=baseline
+
+[61/100] was Diplo mentioned?
+  BASELINE  retr=0.07s llm=1.30s total=1.36s
+  GRAPH     retr=0.07s exp=0.10s llm=1.51s total=1.67s expanded=3
+  JUDGE     winner=graph
+
+[62/100] What is the future of IGF after 2025
+  BASELINE  retr=0.07s llm=4.58s total=4.65s
+  GRAPH     retr=0.07s exp=0.09s llm=5.17s total=5.33s expanded=1
+  JUDGE     winner=baseline
+
+[63/100] internet governance topics of relevance
+  BASELINE  retr=0.07s llm=5.53s total=5.60s
+  GRAPH     retr=0.06s exp=0.09s llm=6.30s total=6.45s expanded=0
+  JUDGE     winner=baseline
+
+[64/100] Youth Manifesto for Digital Rights
+  BASELINE  retr=0.07s llm=11.08s total=11.15s
+  GRAPH     retr=0.07s exp=0.08s llm=9.10s total=9.25s expanded=0
+  JUDGE     winner=baseline
+
+[65/100] core internet protocols, network security
+  BASELINE  retr=0.07s llm=6.83s total=6.90s
+  GRAPH     retr=0.07s exp=0.09s llm=7.98s total=8.14s expanded=0
+  JUDGE     winner=graph
+
+[66/100] More information about the forum
+  BASELINE  retr=0.08s llm=4.24s total=4.32s
+  GRAPH     retr=0.08s exp=0.10s llm=2.90s total=3.07s expanded=0
+  JUDGE     winner=TIE
+
+[67/100] ITU Recommendations
+  BASELINE  retr=0.06s llm=5.93s total=5.99s
+  GRAPH     retr=0.06s exp=0.07s llm=5.23s total=5.36s expanded=0
+  JUDGE     winner=baseline
+
+[68/100] including the programme and participation details
+  BASELINE  retr=0.06s llm=3.17s total=3.23s
+  GRAPH     retr=0.06s exp=0.10s llm=2.55s total=2.71s expanded=1
+  JUDGE     winner=baseline
+
+[69/100] tell me about the future of learning in india
+  BASELINE  retr=0.08s llm=7.05s total=7.13s
+  GRAPH     retr=0.07s exp=0.06s llm=8.70s total=8.84s expanded=0
+  JUDGE     winner=graph
+
+[70/100] provide the links for each diplo AI
+  BASELINE  retr=0.07s llm=1.91s total=1.98s
+  GRAPH     retr=0.07s exp=0.11s llm=3.14s total=3.32s expanded=2
+  JUDGE     winner=graph
+
+[71/100] What was discussed about AI safety?
+  BASELINE  retr=0.08s llm=6.09s total=6.17s
+  GRAPH     retr=0.08s exp=0.06s llm=5.58s total=5.72s expanded=0
+  JUDGE     winner=baseline
+
+[72/100] what is ecmascript?
+  BASELINE  retr=0.06s llm=2.35s total=2.41s
+  GRAPH     retr=0.07s exp=0.09s llm=2.27s total=2.42s expanded=0
+  JUDGE     winner=graph
+
+[73/100] multistakeholder dialogue on internet governance
+  BASELINE  retr=0.06s llm=3.38s total=3.44s
+  GRAPH     retr=0.06s exp=0.06s llm=4.54s total=4.67s expanded=0
+  JUDGE     winner=graph
+
+[74/100] working sessions where participants collaborate
+  BASELINE  retr=0.06s llm=4.45s total=4.52s
+  GRAPH     retr=0.06s exp=0.06s llm=3.34s total=3.47s expanded=0
+  JUDGE     winner=baseline
+
+[75/100] what did Sam Altman said?
+  BASELINE  retr=0.06s llm=4.93s total=4.99s
+  GRAPH     retr=0.06s exp=0.07s llm=5.30s total=5.42s expanded=0
+  JUDGE     winner=baseline
+
+[76/100] What did Jovan Kurbalija discuss?
+  BASELINE  retr=0.06s llm=5.70s total=5.76s
+  GRAPH     retr=0.06s exp=0.07s llm=5.40s total=5.54s expanded=0
+  JUDGE     winner=graph
+
+[77/100] give me serbia agreements
+  BASELINE  retr=0.06s llm=4.74s total=4.80s
+  GRAPH     retr=0.06s exp=0.06s llm=3.94s total=4.07s expanded=0
+  JUDGE     winner=TIE
+
+[78/100] Internet Engineering Task Force
+  BASELINE  retr=0.10s llm=2.85s total=2.95s
+  GRAPH     retr=0.07s exp=0.12s llm=2.81s total=2.99s expanded=1
+  JUDGE     winner=TIE
+
+[79/100] What was discussed about AI safety at the global level?
+  BASELINE  retr=0.11s llm=3.95s total=4.05s
+  GRAPH     retr=0.11s exp=0.06s llm=5.17s total=5.34s expanded=0
+  JUDGE     winner=graph
+
+[80/100] Digital Rights and Inclusion Forum
+  BASELINE  retr=0.07s llm=4.41s total=4.48s
+  GRAPH     retr=0.07s exp=0.06s llm=3.26s total=3.39s expanded=0
+  JUDGE     winner=baseline
+
+[81/100] what are norvey post-covid policy?
+  BASELINE  retr=0.07s llm=6.13s total=6.21s
+  GRAPH     retr=0.07s exp=0.06s llm=4.63s total=4.76s expanded=0
+  JUDGE     winner=graph
+
+[82/100] What are key disagreements in the UN Cybercrime Convention?
+  BASELINE  retr=0.07s llm=6.04s total=6.11s
+  GRAPH     retr=0.07s exp=0.12s llm=5.69s total=5.89s expanded=1
+  JUDGE     winner=baseline
+
+[83/100] Study Group 1 operates within the ITU Radiocommunication
+  BASELINE  retr=0.06s llm=1.54s total=1.60s
+  GRAPH     retr=0.07s exp=0.06s llm=1.83s total=1.96s expanded=0
+  JUDGE     winner=graph
+
+[84/100] plenary discussions
+  BASELINE  retr=0.06s llm=4.25s total=4.32s
+  GRAPH     retr=0.07s exp=0.07s llm=3.22s total=3.35s expanded=0
+  JUDGE     winner=baseline
+
+[85/100] Youth Voices for Digital Rights
+  BASELINE  retr=0.06s llm=6.84s total=6.90s
+  GRAPH     retr=0.07s exp=0.06s llm=4.88s total=5.02s expanded=0
+  JUDGE     winner=baseline
+
+[86/100] social and economic impacts
+  BASELINE  retr=0.06s llm=5.54s total=5.60s
+  GRAPH     retr=0.06s exp=0.07s llm=5.98s total=6.11s expanded=0
+  JUDGE     winner=graph
+
+[87/100] internet governance forum
+  BASELINE  retr=0.06s llm=2.31s total=2.37s
+  GRAPH     retr=0.06s exp=0.07s llm=2.77s total=2.90s expanded=0
+  JUDGE     winner=graph
+
+[88/100] Did Group endorse the recommendations on capacity-building in the 2010
+  BASELINE  retr=0.08s llm=1.16s total=1.24s
+  GRAPH     retr=0.07s exp=0.07s llm=1.13s total=1.27s expanded=0
+  JUDGE     winner=TIE
+
+[89/100] what is digital diplomacy
+  BASELINE  retr=0.08s llm=1.57s total=1.65s
+  GRAPH     retr=0.08s exp=0.18s llm=1.84s total=2.10s expanded=6
+  JUDGE     winner=TIE
+
+[90/100] test diplomacy
+  BASELINE  retr=0.06s llm=5.17s total=5.23s
+  GRAPH     retr=0.07s exp=0.10s llm=7.26s total=7.43s expanded=5
+  JUDGE     winner=graph
+
+[91/100] What is the role of small island developing states in climate negotiat
+  BASELINE  retr=0.08s llm=2.00s total=2.08s
+  GRAPH     retr=0.09s exp=0.09s llm=1.66s total=1.84s expanded=1
+  JUDGE     winner=TIE
+
+[92/100] share research and experiences
+  BASELINE  retr=0.07s llm=6.78s total=6.85s
+  GRAPH     retr=0.07s exp=0.08s llm=10.55s total=10.69s expanded=0
+  JUDGE     winner=graph
+
+[93/100] what is ECMAScript ?
+  BASELINE  retr=0.06s llm=2.10s total=2.16s
+  GRAPH     retr=0.06s exp=0.06s llm=1.39s total=1.52s expanded=0
+  JUDGE     winner=baseline
+
+[94/100] what is india ai position ?
+  BASELINE  retr=0.08s llm=5.60s total=5.67s
+  GRAPH     retr=0.07s exp=0.06s llm=3.53s total=3.67s expanded=0
+  JUDGE     winner=baseline
+
+[95/100] Your Clicks, Your Rights
+  BASELINE  retr=0.07s llm=10.11s total=10.17s
+  GRAPH     retr=0.07s exp=0.09s llm=7.11s total=7.27s expanded=1
+  JUDGE     winner=baseline
+
+[96/100] tell me more about bilateral with bulgaria and romania
+  BASELINE  retr=0.07s llm=1.94s total=2.00s
+  GRAPH     retr=0.07s exp=0.09s llm=1.76s total=1.92s expanded=1
+  JUDGE     winner=baseline
+
+[97/100] How did 9/11 reforms influence digital diplomacy?
+  BASELINE  retr=0.07s llm=5.10s total=5.17s
+  GRAPH     retr=0.08s exp=0.10s llm=4.63s total=4.81s expanded=6
+  JUDGE     winner=baseline
+
+[98/100] What is the Geneva Internet Platform?
+  BASELINE  retr=0.06s llm=2.05s total=2.11s
+  GRAPH     retr=0.06s exp=0.11s llm=2.16s total=2.33s expanded=5
+  JUDGE     winner=baseline
+
+[99/100] what was the norvegian policy during covid?
+  BASELINE  retr=0.07s llm=6.82s total=6.89s
+  GRAPH     retr=0.07s exp=0.06s llm=5.25s total=5.38s expanded=0
+  JUDGE     winner=baseline
+
+[100/100] highlight initiatives that advance digital rights
+  BASELINE  retr=0.07s llm=6.71s total=6.78s
+  GRAPH     retr=0.07s exp=0.07s llm=6.12s total=6.27s expanded=0
+  JUDGE     winner=graph
+
+======================================================================
+  COMPLETED 100 questions in 1176.3s
+======================================================================
+
+Criteria averages (1-5):
+  completeness     Baseline=4.42  Graph=4.37
+  accuracy         Baseline=4.74  Graph=4.79
+  specificity      Baseline=4.02  Graph=3.97
+  source_usage     Baseline=4.11  Graph=4.00
+
+Timing averages:
+  Baseline total:      4.11s
+  Graph total:         4.09s
+  Graph expansion:     +0.087s overhead
+
+Wins: Baseline=46  Graph=33  Tie=21  Error=0
+
+Markdown report: notebooks/benchmark_results/ab_comparison_2026-03-30_1415.md
+JSON data:       notebooks/benchmark_results/ab_comparison_2026-03-30_1415.json
+File sizes:      466.2 KB (md), 481.7 KB (json)
+
+Connections closed. Done.
+/usr/lib/python3.12/asyncio/selector_events.py:879: ResourceWarning: unclosed transport <_SelectorSocketTransport fd=5>

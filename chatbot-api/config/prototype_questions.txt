@@ -1,0 +1,86 @@
+# Prototype questions per post_type for dynamic label weight boosting.
+# Used to compute prototype embeddings at startup.
+#
+# Format:
+#   [post_type]        — section header (must match post_type values in Weaviate)
+#   One question per line under each section.
+#   Blank lines and lines starting with # are ignored.
+#
+# You can freely add, remove, or edit questions.
+# Changes take effect on next application restart.
+
+[topic]
+What is digital diplomacy?
+Explain the concept of internet governance
+How does cybersecurity policy work?
+What are the main issues in AI governance?
+Tell me about data privacy in international law
+
+[blog]
+What are expert opinions on digital policy?
+Recent analysis of diplomatic developments
+Commentary on the latest UN cyber negotiations
+What do Diplo experts think about AI regulation?
+Blog posts about multilateral diplomacy trends
+
+[event]
+What happened at the Geneva Internet Forum?
+When is the next Diplo webinar?
+Summary of the AI governance conference
+What was discussed at the latest workshop?
+Upcoming events on digital policy
+
+[course]
+What courses does Diplo offer?
+How to enroll in a digital diplomacy programme?
+Online training on internet governance
+What will I learn in the cybersecurity course?
+Available certificates and programmes
+
+[people]
+Who is Jovan Kurbalija?
+Tell me about the director of DiploFoundation
+Who works on digital policy at Diplo?
+What is the background of this ambassador?
+Biography of the speaker at the conference
+
+[actor]
+What is the role of the ITU in internet governance?
+Tell me about ICANN's responsibilities
+Which countries participate in cyber negotiations?
+What does the European Union do on digital policy?
+Role of civil society in internet governance
+
+[updates]
+What are the latest developments in digital policy?
+Recent updates on cybersecurity negotiations
+What's new in internet governance this month?
+Latest news from the UN digital cooperation process
+Current developments in AI regulation
+
+[technologies]
+How does blockchain work in governance?
+What is artificial intelligence used for in diplomacy?
+Explain cloud computing and data sovereignty
+What are the risks of 5G infrastructure?
+How does encryption affect privacy policy?
+
+[diplonews]
+What was in the latest Diplo newsletter?
+DiploNews highlights this week
+Summary of recent Diplo announcements
+What did Diplo report on this month?
+
+[resource]
+Research papers on cyber diplomacy
+Policy briefs about digital foreign policy
+Academic publications on internet governance
+Download the report on AI and diplomacy
+Studies and papers about e-diplomacy
+
+[histories]
+History of diplomatic communication
+How did diplomacy evolve over time?
+Origins of internet governance negotiations
+When did digital diplomacy begin?
+Historical development of international law

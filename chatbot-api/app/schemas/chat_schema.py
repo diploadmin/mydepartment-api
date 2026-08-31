@@ -1,0 +1,201 @@
+from enum import Enum
+from typing import Optional, List
+from pydantic import BaseModel, EmailStr, HttpUrl
+from app.schemas.rwschema import RWSchema
+
+
+'''
+------------------------
+Helper Schemas
+------------------------
+''' 
+
+class ResponseSource(BaseModel):
+    """Client-facing source card (WebSocket ``sources`` / HTTP ``sources``).
+
+    Graph enrichment stays on Document metadata and in ``graph_data`` payloads;
+    do not expose Neo4j fields here so WordPress source cards stay pre–Apr-2026.
+    """
+    text: str
+    date: str
+    title: str
+    url: str
+    link: Optional[str] = None
+    name: Optional[str] = None
+    deep_link_url: Optional[str] = None
+
+    def to_dict(self):
+        result = {
+            'text': self.text,
+            'title': self.title,
+            'date': self.date,
+            'url': str(self.url),
+        }
+        if self.link:
+            result['link'] = str(self.link)
+        if self.name:
+            result['name'] = self.name
+        if self.deep_link_url:
+            result['deep_link_url'] = self.deep_link_url
+        return result
+
+class ChatHistoryResponseObject(BaseModel):
+    content: str
+    feedback_type:str
+    
+    
+class ChatHistoryResponse(BaseModel):
+    message: str
+    timestamp: str
+    response: ChatHistoryResponseObject
+    
+    
+
+'''
+------------------------
+Route Schemas
+------------------------
+'''
+
+# UserType is chosen in the frontend - how would you like the LLM to answer your question?
+class UserType(str, Enum):
+    General = "general"
+    Student = "student"
+    Diplomat = "diplomat"
+    Researcher = "researcher"
+    Historian = "historian"
+    Philosopher = "philosopher"
+    Contrarian = "contrarian"
+    Journalist = "journalist"
+
+class CustomFilterItem(BaseModel):
+    collection: str
+    path: List[str]
+    operator: str = "Equal"
+    valueText: str
+
+
+class CustomFilterGroup(BaseModel):
+    """One saved filter card: conditions inside are AND by default."""
+    combine: str = "and"
+    filters: List[CustomFilterItem] = []
+
+
+class CustomFiltersConfig(BaseModel):
+    version: int = 1
+    # Between cards/groups. Default OR (WP may send groups).
+    combine: str = "or"
+    filters: List[CustomFilterItem] = []
+    groups: List[CustomFilterGroup] = []
+
+
+# RetrievalConfig is the schema for all that will be called for the retrieval process
+class RetrievalConfig(BaseModel):
+    retrieval_mode: Optional[str] = None
+    retrieval_chunks: Optional[int] = None
+    hybrid_alpha: Optional[float] = None
+    sentence_retrieval_k: Optional[int] = None
+    # sentence_header A/B overrides (also used when graph mode is sentence_header)
+    sentence_title_k: Optional[int] = None
+    sentence_title_alpha: Optional[float] = None
+    sentence_title_fetch_limit: Optional[int] = None
+    use_reranker: Optional[bool] = None
+    reranker_top_k: Optional[int] = None
+    sentence_reranker_top_k: Optional[int] = None
+    sentence_ce_candidates: Optional[int] = None
+    sentence_ce_max_groups: Optional[int] = None
+    heading_boost_weight: Optional[float] = None
+    heading_inject_min_sim: Optional[float] = None
+    heading_inject_max: Optional[int] = None
+    heading_inject_min_sents: Optional[int] = None
+    top_n_per_section: Optional[int] = None
+    max_sections_per_url: Optional[int] = None
+    skip_tool_decision: Optional[bool] = None
+    max_tool_calls: Optional[int] = None
+    cite_sources: Optional[bool] = None
+    use_source_filter: Optional[bool] = None
+    retrieval_cache_ttl: Optional[int] = None
+    sentence_highlight_mode: Optional[str] = None
+    deep_link_highlight_mode: Optional[str] = None
+    use_short_deep_links: Optional[bool] = None
+    parent_filter_name: Optional[str] = None
+    site_filter_name: Optional[str] = None
+    person_filter_name: Optional[str] = None
+    person_filter_names: Optional[List[str]] = None
+    city_filter_name: Optional[str] = None
+    city_filter_names: Optional[List[str]] = None
+    country_filter_name: Optional[str] = None
+    country_filter_names: Optional[List[str]] = None
+    organisation_filter_name: Optional[str] = None
+    organisation_filter_names: Optional[List[str]] = None
+    # oneweaviate ACL: TEXT[] access_groups. If omitted, DEFAULT_ACCESS_GROUPS from .env.
+    access_group_name: Optional[str] = None
+    access_group_names: Optional[List[str]] = None
+    # Override .env EXCLUDE_COPYRIGHT for this request (true = drop copyright=1).
+    exclude_copyright: Optional[bool] = None
+    post_types: Optional[List[str]] = None
+    use_dynamic_label_weights: Optional[bool] = None
+    dynamic_weight_alpha: Optional[float] = None
+    dynamic_weight_min_sim: Optional[float] = None
+    use_recency_boost: Optional[bool] = None
+    recency_boost_max_age_days: Optional[int] = None
+    recency_half_life_days: Optional[int] = None
+    recency_max_boost: Optional[float] = None
+    use_contextual: Optional[bool] = None
+    enable_graph_expansion: Optional[bool] = None
+    graph_max_relations: Optional[int] = None
+    graph_context_format: Optional[str] = None
+    custom_filters: Optional[CustomFiltersConfig] = None
+
+# this is sent by the frontend to the API
+# it validates if the frontend sent the correct data and what data is sent
+# used by the chat_route.py to later process the data
+# I = 
+# user_ip: str
+# message: str
+# user_type: UserType
+# system_prompt: Optional[str] = None
+# retrieval_config: Optional[RetrievalConfig] = None
+# O =
+# ChatRouteRequest schema
+class ChatRouteRequest(RWSchema):
+    user_ip: str
+    message: str
+    user_type: UserType
+    system_prompt: Optional[str] = None
+    retrieval_config: Optional[RetrievalConfig] = None
+    
+# this is a setup for the graph data - 
+class GraphData(BaseModel):
+    """Subgraph data for frontend visualization (vis-network compatible)."""
+    nodes: Optional[List[dict]] = None
+    edges: Optional[List[dict]] = None
+    subgraph_url: Optional[str] = None
+
+# this is the structure of the response from the API
+# with message_id, answer
+# also calling other functions to get the sources, related questions, and graph data
+class ChatRouteResponse(BaseModel):
+    message_id: str
+    answer: str
+    sources: List[ResponseSource]
+    related_questions: List[str]
+    graph_data: Optional[GraphData] = None
+
+# thi isnt used yet
+# we use __record_conversation in chat_service.py to record the conversation instead of this
+class ChatHistoryResponseObject(BaseModel):
+    content: str
+    feedback_type:str
+    
+# same as above 
+class ChatHistoryResponse(BaseModel):
+    message: str
+    timestamp: str
+    response: ChatHistoryResponseObject
+    
+# this save 👍/👎 feedback from the user    
+class FeedbackRouteRequest(BaseModel):
+    feedback_type: int
+    feedback_message: Optional[str] = None
+    

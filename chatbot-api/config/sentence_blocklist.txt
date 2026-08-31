@@ -1,0 +1,32 @@
+# Sentence Blocklist — rečenice koje se ignorišu prilikom hybrid retrieval-a
+# ============================================================================
+# Svaka linija je jedna rečenica (ili prefix) za blokiranje.
+# Prazan red ili red koji počinje sa # se ignoriše.
+# Matching: case-insensitive, rečenica iz baze mora da SADRŽI tekst iz blockliste.
+#
+# Primeri:
+#   Would you like to learn more about AI    →  blokira sve rečenice koje sadrže ovaj tekst
+#   Subscribe to our newsletter              →  blokira "Subscribe to our newsletter" varijante
+#
+# ============================================================================
+
+# --- Specific known CTA sentences ---
+Would you like to learn more about AI, tech and digital diplomacy?
+
+# --- Generic CTA / boilerplate patterns ---
+# These are caught at the Weaviate filter level before retrieval,
+# preventing them from ever appearing in search results.
+share your thoughts
+click here
+read more about
+learn more about
+subscribe to our
+sign up for
+contact us
+apply now
+join us
+follow us on
+see also
+related topics
+with us here
+please share your

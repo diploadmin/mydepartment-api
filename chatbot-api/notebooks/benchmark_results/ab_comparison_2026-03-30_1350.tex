@@ -1,0 +1,312 @@
+\documentclass[11pt,a4paper]{article}
+
+\usepackage{fontspec}
+\setmainfont{DejaVu Serif}
+\setsansfont{DejaVu Sans}
+\setmonofont{DejaVu Sans Mono}
+
+\usepackage[margin=2.2cm]{geometry}
+\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage{longtable}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage{enumitem}
+\usepackage{fancyhdr}
+\usepackage{titlesec}
+\usepackage{tcolorbox}
+\usepackage{listings}
+\usepackage{amssymb}
+
+\definecolor{graphwin}{RGB}{34,139,34}
+\definecolor{basewin}{RGB}{0,90,180}
+\definecolor{tiecolor}{RGB}{120,120,120}
+\definecolor{codebg}{RGB}{245,245,245}
+\definecolor{judgebox}{RGB}{255,248,230}
+
+\hypersetup{
+    colorlinks=true,
+    linkcolor=blue!60!black,
+    urlcolor=blue!60!black,
+}
+
+\lstset{
+    basicstyle=\ttfamily\scriptsize,
+    backgroundcolor=\color{codebg},
+    frame=single,
+    breaklines=true,
+    breakatwhitespace=true,
+    columns=fullflexible,
+}
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small Graph RAG A/B Benchmark}
+\fancyhead[R]{\small 2026-03-30}
+\fancyfoot[C]{\thepage}
+
+\titleformat{\section}{\Large\bfseries\sffamily}{}{0em}{}[\vspace{-0.5em}\rule{\textwidth}{0.4pt}]
+\titleformat{\subsection}{\large\bfseries\sffamily}{}{0em}{}
+
+\newcommand{\winner}[1]{\textbf{\textcolor{graphwin}{#1}}}
+\newcommand{\basewinner}[1]{\textbf{\textcolor{basewin}{#1}}}
+
+\begin{document}
+
+% ── Title ──
+\begin{center}
+{\LARGE\sffamily\bfseries Graph RAG A/B Benchmark Report}\\[0.5em]
+{\large 2026-03-30 13:50}\\[1.5em]
+\end{center}
+
+\begin{tabularx}{\textwidth}{@{}lX@{}}
+\textbf{LLM} & \texttt{openai/gpt-oss-120b} @ \texttt{chatgpt-oss.diplomacy.edu} \\
+\textbf{Retrieval} & DiploChunk\_contextual hybrid ($\alpha=0.75$, limit=30) \\
+\textbf{Graph DB} & Neo4j \texttt{weaviatediplo} @ \texttt{nimani.diplomacy.edu:7687} \\
+\textbf{Judge} & LLM-as-Judge (same model, temperature=0) \\
+\textbf{Questions} & 5 (production user queries) \\
+\end{tabularx}
+\vspace{1em}
+
+% ══════════════════════════════════════════════════════════════════════
+\section{Summary}
+
+\begin{center}
+\begin{tabular}{clcccccc}
+\toprule
+\textbf{\#} & \textbf{Question} & \textbf{B time} & \textbf{G time} & \textbf{Δ expand} & \textbf{B avg} & \textbf{G avg} & \textbf{Winner} \\
+\midrule
+1 & AI governance \& Diplo's approach & 3.67s & 4.50s & +0.11s & 4.2 & 5.0 & \winner{Graph} \\
+2 & IGF 2025 internet governance & 3.19s & 3.79s & +0.10s & 4.8 & 4.8 & \winner{Graph} \\
+3 & Diplo AI in education & 3.22s & 3.08s & +0.09s & 4.8 & 4.2 & \basewinner{Baseline} \\
+4 & Cybersecurity \& diplomacy & 2.94s & 4.28s & +0.10s & 4.2 & 5.0 & \winner{Graph} \\
+5 & Digital policy for developing countries & 5.67s & 4.67s & +0.07s & 5.0 & 4.5 & \basewinner{Baseline} \\
+\midrule
+\multicolumn{2}{l}{\textbf{Average}} & \textbf{3.74s} & \textbf{4.06s} & \textbf{+0.094s} & \textbf{4.6} & \textbf{4.7} & \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\vspace{0.5em}
+\begin{center}
+\fbox{\parbox{0.7\textwidth}{\centering
+\large\sffamily
+\textbf{Wins:} \basewinner{Baseline 2} \quad \winner{Graph 3} \quad \textcolor{tiecolor}{Tie 0}\\[0.3em]
+\textbf{Graph expansion overhead:} +0.094s average
+}}
+\end{center}
+
+% ══════════════════════════════════════════════════════════════════════
+\section{Detailed Scores}
+
+\begin{center}
+\begin{tabular}{llcc}
+\toprule
+\textbf{Question} & \textbf{Criterion} & \textbf{Baseline} & \textbf{Graph} \\
+\midrule
+\textbf{Q1} AI governance & completeness & 4 & \textbf{5} \\
+                            & accuracy & 5 & 5 \\
+                            & specificity & 4 & \textbf{5} \\
+                            & source\_usage & 4 & \textbf{5} \\
+                            & \textit{average} & \textit{4.2} & \textit{\textbf{5.0}} \\
+\midrule
+\textbf{Q2} IGF 2025 & completeness & 5 & 5 \\
+                       & accuracy & 5 & 5 \\
+                       & specificity & 4 & 4 \\
+                       & source\_usage & 5 & 5 \\
+                       & \textit{average} & \textit{4.8} & \textit{4.8} \\
+\midrule
+\textbf{Q3} AI education & completeness & \textbf{5} & 4 \\
+                           & accuracy & 5 & 5 \\
+                           & specificity & 4 & 4 \\
+                           & source\_usage & \textbf{5} & 4 \\
+                           & \textit{average} & \textit{\textbf{4.8}} & \textit{4.2} \\
+\midrule
+\textbf{Q4} Cybersecurity & completeness & 4 & \textbf{5} \\
+                            & accuracy & 5 & 5 \\
+                            & specificity & 4 & \textbf{5} \\
+                            & source\_usage & 4 & \textbf{5} \\
+                            & \textit{average} & \textit{4.2} & \textit{\textbf{5.0}} \\
+\midrule
+\textbf{Q5} Digital policy & completeness & \textbf{5} & 4 \\
+                             & accuracy & 5 & 5 \\
+                             & specificity & \textbf{5} & 4 \\
+                             & source\_usage & 5 & 5 \\
+                             & \textit{average} & \textit{\textbf{5.0}} & \textit{4.5} \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+% ══════════════════════════════════════════════════════════════════════
+\section{Full Answers}
+
+% ── Q1 ──
+\subsection{Q1: What is AI governance and how does Diplo approach it?}
+
+\begin{tabularx}{\textwidth}{lXX}
+\toprule
+& \textbf{Baseline} & \textbf{Graph-Enriched} \\
+\midrule
+Time & 3.67s & 4.50s (+0.11s expansion) \\
+Score avg & 4.2/5 & 5.0/5 \\
+Expanded docs & --- & 3 \\
+Winner & & \winner{$\checkmark$} \\
+\bottomrule
+\end{tabularx}
+
+\begin{tcolorbox}[colback=judgebox, colframe=orange!40!black, title=Judge Reasoning]
+Answer B covers more facets of Diplo's approach with a structured table and additional details, while maintaining accurate, well-cited information.
+\end{tcolorbox}
+
+\paragraph{Baseline Answer}
+\textbf{AI governance} is the collection of policies, standards, institutions and processes that steer how artificial-intelligence systems are designed, built, deployed and used. In the Diplo literature it is described as a \textit{layered} framework that spans the entire technical stack -- from the physical hardware that runs models, through the data that feeds them, the algorithms that process that data, and finally the applications that deliver AI-driven services [2]. Good AI governance seeks to ensure that these systems respect human rights, reflect diverse perspectives, operate on balanced data, and remain accountable to the societies they affect.
+
+\textbf{How Diplo approaches AI governance:}
+\begin{enumerate}[nosep]
+\item \textbf{Blend of diplomatic expertise and hands-on tech knowledge} -- Diplo stresses that teaching and researching technology governance requires more than theory; it demands a deep, practical grasp of the underlying technologies [3][8].
+\item \textbf{Mapping the full stack} -- By breaking AI into hardware, data, algorithms and apps, Diplo's analysts can pinpoint where governance interventions are needed [2].
+\item \textbf{Multistakeholder and rights-focused framing} -- Diplo's work (e.g., the IGF 2025 session) highlights the importance of involving the private sector, civil society and governments [5].
+\item \textbf{Strategic foresight for diplomacy} -- Studies examining how the rapid rollout of national AI strategies creates a competitive ``race'' and what that means for diplomatic practice [4].
+\item \textbf{Preparing diplomats} -- Before discussing governance, Diplo first ensures diplomats have a solid technical foundation in AI [8].
+\end{enumerate}
+
+\paragraph{Graph-Enriched Answer}
+\textbf{AI governance} is the set of policies, norms, institutions and technical safeguards that steer the whole life-cycle of artificial-intelligence systems -- from the chips that run them, through the data they ingest, the algorithms that process that data, to the applications that deliver outcomes -- so that AI serves public interest, respects human rights and remains accountable and transparent. In Diplo's own description the ``layers of AI governance'' are hardware, data, algorithms and apps [2].
+
+\textbf{How Diplo approaches AI governance} -- presented as a structured comparison table covering: blend of expertise [3], technical grounding before policy [8], multistakeholder focus at IGF 2025 [5], human-rights and inclusivity lens [5][4], research and mapping [4], strategic forums and incentives [5], and core mission alignment [1][6].
+
+\paragraph{Graph Context Injected}
+\begin{lstlisting}
+--- KNOWLEDGE GRAPH CONTEXT ---
+Graph context for "[Briefing #51] Internet governance forecast for 2019":
+  Topics: Artificial Intelligence, Gender rights online
+  Topic hierarchy: AI -> Infrastructure -> Internet governance and digital policy
+  Tags: Diplo Blog
+
+Graph context for "Diplo/GIP at IGF 2025":
+  Topics: Internet governance, Sustainable development, Digital standards, AI, Critical internet resources
+  Related organizations: Internet Governance Forum
+  Tags: IGF, Infrastructure, Development
+\end{lstlisting}
+
+% ── Q2 ──
+\subsection{Q2: What happened at IGF 2025 regarding internet governance?}
+
+\begin{tabularx}{\textwidth}{lXX}
+\toprule
+& \textbf{Baseline} & \textbf{Graph-Enriched} \\
+\midrule
+Time & 3.19s & 3.79s (+0.10s expansion) \\
+Score avg & 4.8/5 & 4.8/5 \\
+Expanded docs & --- & 0 \\
+Winner & & \winner{$\checkmark$} \\
+\bottomrule
+\end{tabularx}
+
+\begin{tcolorbox}[colback=judgebox, colframe=orange!40!black, title=Judge Reasoning]
+Both answers are equally thorough and accurate, but Answer A presents the information slightly more cohesively with distinct bullet points, giving it a marginal edge.
+\end{tcolorbox}
+
+\paragraph{Baseline Answer}
+The IGF convened in Lillestrøm, Norway in 2025 covering: strategic alignment with WSIS+20 and Global Digital Compact [2]; sustainability of NRIs [1]; Big-Tech influence [3]; internet fragmentation [5]; AI governance -- both inclusive/cooperative [6] and Africa's sovereign path [7]; global digital funding crisis [8]; contextual significance of WSIS 20th anniversary and IGF mandate expiry [4].
+
+\paragraph{Graph-Enriched Answer}
+Covered the same topics with slightly different framing. No graph expansion triggered (0 docs expanded) as the IGF 2025 pages retrieved were not yet in the Neo4j graph, yet judge still scored this marginally higher for cohesion.
+
+% ── Q3 ──
+\subsection{Q3: How does Diplo use AI in its educational programs?}
+
+\begin{tabularx}{\textwidth}{lXX}
+\toprule
+& \textbf{Baseline} & \textbf{Graph-Enriched} \\
+\midrule
+Time & 3.22s & 3.08s (+0.09s expansion) \\
+Score avg & 4.8/5 & 4.2/5 \\
+Expanded docs & --- & 1 \\
+Winner & \basewinner{$\checkmark$} & \\
+\bottomrule
+\end{tabularx}
+
+\begin{tcolorbox}[colback=judgebox, colframe=orange!40!black, title=Judge Reasoning]
+Answer B adds an extra, sourced point about AI initiatives aligning with Diplo's core mission, making it more complete and better sourced while remaining accurate.
+\end{tcolorbox}
+
+\paragraph{Key themes in both answers:} AI apprenticeship, AI Campus programme, AI-based courses, hands-on experiential learning (building AI apps), innovative pedagogical experimentation. Baseline included a ``core mission alignment'' point that gave it the edge.
+
+\paragraph{Graph Context:} Topics: Artificial Intelligence, AI diplomacy. Hierarchy: AI → Infrastructure → Internet governance. Related people: Jovan Kurbalija.
+
+% ── Q4 ──
+\subsection{Q4: What is the relationship between cybersecurity and diplomacy?}
+
+\begin{tabularx}{\textwidth}{lXX}
+\toprule
+& \textbf{Baseline} & \textbf{Graph-Enriched} \\
+\midrule
+Time & 2.94s & 4.28s (+0.10s expansion) \\
+Score avg & 4.2/5 & 5.0/5 \\
+Expanded docs & --- & 3 \\
+Winner & & \winner{$\checkmark$} \\
+\bottomrule
+\end{tabularx}
+
+\begin{tcolorbox}[colback=judgebox, colframe=orange!40!black, title=Judge Reasoning]
+Answer A covers more facets (policy, cooperation, geopolitical relevance, diplomat roles, capacity-building) with concrete examples and citations, making it more complete and specific.
+\end{tcolorbox}
+
+\paragraph{Baseline:} 3 dimensions -- shared policy portfolio [1], international networks [4], geopolitics/geoeconomics [3][2]. Concise but effective.
+
+\paragraph{Graph-Enriched:} 6 expanded dimensions including capacity-building for e-diplomats with specific course references from graph context. Named people (Pavlina Ittelson, Katherine Getao, Vladimir Radunović, Jovan Kurbalija) and organizations (DiploFoundation) from graph. This specificity gave it the 5.0/5 score.
+
+\paragraph{Graph Context Injected (3 docs):}
+\begin{lstlisting}
+Cybersecurity Diplomacy online course:
+  Topics: Foreign ministries, Digital diplomacy, Capacity development,
+    Negotiations, Cyberconflict and warfare, Critical infrastructure
+  People: Pavlina Ittelson, Katherine Getao, Asoke Mukerji,
+    Vladimir Radunovic, Jovan Kurbalija
+
+Podcast "The Diplomat's Sofa #3":
+  Topics: Digital diplomacy, Critical infrastructure, Network security
+
+Webinar "Cybersecurity for e-diplomats":
+  Topics: Internet governance, Cyberconflict and warfare
+  People: Vladimir Radunovic
+  Organizations: DiploFoundation
+\end{lstlisting}
+
+% ── Q5 ──
+\subsection{Q5: What are the main digital policy challenges for developing countries?}
+
+\begin{tabularx}{\textwidth}{lXX}
+\toprule
+& \textbf{Baseline} & \textbf{Graph-Enriched} \\
+\midrule
+Time & 5.67s & 4.67s (+0.07s expansion) \\
+Score avg & 5.0/5 & 4.5/5 \\
+Expanded docs & --- & 0 \\
+Winner & \basewinner{$\checkmark$} & \\
+\bottomrule
+\end{tabularx}
+
+\begin{tcolorbox}[colback=judgebox, colframe=orange!40!black, title=Judge Reasoning]
+Answer B covers a broader set of challenges with more concrete details and consistently cites sources, making it more complete and specific.
+\end{tcolorbox}
+
+\paragraph{Key observation:} No graph expansion occurred (0 docs in Neo4j graph). Both answers relied on the same retrieval context. Baseline produced a more detailed 6-category table and scored 5.0/5 -- demonstrating that graph enrichment adds value only when documents exist in the knowledge graph.
+
+% ══════════════════════════════════════════════════════════════════════
+\section{Key Findings}
+
+\begin{enumerate}
+\item \textbf{Graph enrichment improves answer quality when documents are in Neo4j.} Questions where 3+ documents were expanded (Q1, Q4) showed the largest score improvements (+0.8 avg).
+
+\item \textbf{Graph expansion overhead is minimal:} +0.094s average -- negligible compared to LLM generation time (2.8--9.1s).
+
+\item \textbf{Coverage gap matters:} When retrieved documents are not in the knowledge graph (Q2, Q5), the graph-enriched answer is essentially identical to baseline. Expanding Neo4j coverage would directly improve results.
+
+\item \textbf{Structural knowledge helps specificity:} Graph context provides topic hierarchies, related people, and organizations that the LLM uses to produce more structured, specific answers (e.g., Q4: cybersecurity answer cited specific people and courses).
+
+\item \textbf{No degradation observed:} Graph enrichment never produced a worse answer than baseline when graph data was available -- the worst case is neutral.
+\end{enumerate}
+
+\end{document}

@@ -1,0 +1,611 @@
+"""
+Shared utilities for retriever strategies.
+
+Extracts common logic used across SentenceFirstRetriever, CombinedRetriever,
+and TwoPhaseRetriever:
+- URL grouping from paragraph search results
+- Score aggregation with weighted top-N
+- Section selection via embedding similarity
+- Text cleaning for deep-link highlighting
+"""
+
+import re
+import math
+from collections import defaultdict
+from typing import List, Dict, Tuple, Optional
+
+from langchain_core.documents import Document
+from langchain_core.embeddings import Embeddings
+
+import weaviate
+from weaviate.classes.query import Filter as WvFilter
+
+from app.ai.ai_services.label_weights import POST_TYPE_TO_LABEL
+from app.core.config import USE_CONTEXTUAL_COLLECTIONS
+from app.core.retrieval_context import get_param
+
+_parent_hash_cache: Dict[str, Optional[str]] = {}
+
+
+# this filters out private objects
+def visibility_filter() -> WvFilter:
+    """Exclude objects marked as private.
+
+    Implementation note: we intentionally avoid ``is_none(True)`` because it
+    requires ``indexNullState: true`` in the Weaviate ``invertedIndexConfig``
+    for the ``visibility`` property, which is not the case for every
+    deployment. ``not_equal("private")`` keeps all non-private objects,
+    including ones where ``visibility`` was not set (Weaviate treats a
+    missing/empty value as not equal to "private").
+    """
+    return WvFilter.by_property("visibility").not_equal("private")
+
+# this filters out objects based on the post_type
+def post_types_filter(post_types: Optional[List[str]]) -> Optional[WvFilter]:
+    """Build an include (whitelist) filter on the ``post_type`` property.
+
+    Accepts a list of WordPress post types (e.g. ``["blog", "topic"]``) and
+    returns a Weaviate filter that keeps only objects whose ``post_type``
+    matches one of the provided values (case-insensitive, trimmed).
+
+    Returns None when the list is empty / not provided, so callers can
+    skip combining with the base filter.
+    """
+    if not post_types:
+        return None
+
+    normalized = [pt.strip().lower() for pt in post_types if pt and pt.strip()]
+    if not normalized:
+        return None
+
+    return WvFilter.by_property("post_type").contains_any(normalized)
+
+# this merges the filter values
+# meaning you can have - OR operater + AND operater -
+def _merge_filter_values(
+    single_value: Optional[str] = None,
+    multi_values: Optional[list] = None,
+) -> list[str]:
+    """Merge single + multi filter values, deduplicated (order preserved)."""
+    values: list[str] = []
+    if multi_values:
+        for item in multi_values:
+            if item is not None and str(item).strip():
+                values.append(str(item).strip())
+    if single_value and str(single_value).strip():
+        values.append(str(single_value).strip())
+    return list(dict.fromkeys(values))
+
+# this is the filter for the TEXT or TEXT[] properties
+# meaning search text or part of text
+def scalar_text_filter(
+    property_name: str,
+    single_value: Optional[str] = None,
+    multi_values: Optional[list] = None,
+) -> Optional[WvFilter]:
+    """Build an OR filter on a TEXT or TEXT[] property via ``contains_any``.
+
+    For TEXT[] (e.g. ``person``), matches when any array element equals a value.
+    For TEXT (e.g. ``city``), matches when the property equals any value.
+    """
+    unique_values = _merge_filter_values(single_value, multi_values)
+    if not unique_values:
+        return None
+    return WvFilter.by_property(property_name).contains_any(unique_values)
+
+# this is the filter for the person property
+def person_filter(person_name: Optional[str] = None, person_names: Optional[list] = None) -> Optional[WvFilter]:
+    """Build an include filter on the ``person`` property (TEXT[])."""
+    return scalar_text_filter("person", person_name, person_names)
+
+# this is the filter for the person property from the parameters 
+def person_filter_from_params() -> Optional[WvFilter]:
+    """Resolve person filter from per-request retrieval overrides."""
+    return scalar_text_filter_from_params("person", "person_filter_name", "person_filter_names")
+
+# fix 03.07.2026
+def _people_profile_geo_filter(
+    property_name: str,
+    single_param: str,
+    multi_param: str,
+) -> Optional[WvFilter]:
+    """Geo/org filters apply to People profile fields only (not event location)."""
+    field_filter = scalar_text_filter_from_params(property_name, single_param, multi_param)
+    if field_filter is None:
+        return None
+    return field_filter & WvFilter.by_property("post_type").equal("people")
+
+# fix 03.07.2026
+def city_filter_from_params() -> Optional[WvFilter]:
+    return _people_profile_geo_filter("city", "city_filter_name", "city_filter_names")
+
+# fix 03.07.2026
+def country_filter_from_params() -> Optional[WvFilter]:
+    return _people_profile_geo_filter("country", "country_filter_name", "country_filter_names")
+
+# fix 03.07.2026
+def organisation_filter_from_params() -> Optional[WvFilter]:
+    return _people_profile_geo_filter(
+        "organisation", "organisation_filter_name", "organisation_filter_names",
+    )
+
+
+def scalar_text_filter_from_params(
+    property_name: str,
+    single_param: str,
+    multi_param: str,
+) -> Optional[WvFilter]:
+    """Resolve a scalar/TEXT[] filter from per-request retrieval overrides."""
+    return scalar_text_filter(
+        property_name,
+        single_value=get_param(single_param, None),
+        multi_values=get_param(multi_param, None),
+    )
+
+
+def merged_param_values(single_param: str, multi_param: str) -> list[str]:
+    """Return merged active values for a single+multi filter param pair."""
+    return _merge_filter_values(
+        get_param(single_param, None),
+        get_param(multi_param, None),
+    )
+
+
+_CONTENT_FILTER_SPECS = (
+    ("person", person_filter_from_params, "person_filter_name", "person_filter_names"),
+    ("city", city_filter_from_params, "city_filter_name", "city_filter_names"),
+    ("country", country_filter_from_params, "country_filter_name", "country_filter_names"),
+    ("organisation", organisation_filter_from_params, "organisation_filter_name", "organisation_filter_names"),
+)
+
+
+def _build_custom_filter_piece(field: str, operator: str, value_text: str) -> Optional[WvFilter]:
+    if not field or not value_text:
+        return None
+    op = (operator or "Equal").strip()
+    if op.lower() == "like":
+        pattern = value_text if "*" in value_text else f"*{value_text}*"
+        return WvFilter.by_property(field).like(pattern)
+    return WvFilter.by_property(field).equal(value_text)
+
+
+def _piece_from_filter_item(item: dict, target_collection: str) -> tuple[Optional[WvFilter], Optional[str]]:
+    """Return (weaviate_filter, debug_label) for one filter item, or (None, None)."""
+    if not isinstance(item, dict):
+        return None, None
+    collection = (item.get("collection") or "").strip()
+    if collection != target_collection:
+        return None, None
+    path = item.get("path") or []
+    field = path[0] if path else None
+    value_text = (item.get("valueText") or "").strip()
+    operator = item.get("operator") or "Equal"
+    piece = _build_custom_filter_piece(field, operator, value_text)
+    if piece is None:
+        return None, None
+    return piece, f"{field} {operator} {value_text!r}"
+
+
+def _combine_filters(parts: list[WvFilter], how: str) -> Optional[WvFilter]:
+    if not parts:
+        return None
+    out = parts[0]
+    join_or = (how or "and").strip().lower() == "or"
+    for part in parts[1:]:
+        out = out | part if join_or else out & part
+    return out
+
+
+def custom_filters_for_collection(target_collection: str) -> Optional[WvFilter]:
+    """Build Weaviate filter from per-request custom_filters for a target collection.
+
+    Supports:
+    - groups[] with top-level combine (default OR between groups, AND inside)
+    - legacy flat filters[] with top-level combine
+    """
+    raw = get_param("custom_filters", None)
+    if not raw or not isinstance(raw, dict):
+        return None
+
+    top_combine = (raw.get("combine") or "or").strip().lower()
+    if top_combine not in ("and", "or"):
+        top_combine = "or"
+
+    groups = raw.get("groups")
+    if isinstance(groups, list) and groups:
+        group_filters: list[WvFilter] = []
+        active_labels: list[str] = []
+        for group in groups:
+            if not isinstance(group, dict):
+                continue
+            group_combine = (group.get("combine") or "and").strip().lower()
+            if group_combine not in ("and", "or"):
+                group_combine = "and"
+            items = group.get("filters") or []
+            pieces: list[WvFilter] = []
+            labels: list[str] = []
+            for item in items:
+                piece, label = _piece_from_filter_item(item, target_collection)
+                if piece is None:
+                    continue
+                pieces.append(piece)
+                if label:
+                    labels.append(label)
+            group_f = _combine_filters(pieces, group_combine)
+            if group_f is None:
+                continue
+            group_filters.append(group_f)
+            if len(labels) == 1:
+                active_labels.append(labels[0])
+            else:
+                joiner = f" {group_combine.upper()} "
+                active_labels.append(f"({joiner.join(labels)})")
+
+        combined = _combine_filters(group_filters, top_combine)
+        if combined is not None:
+            joiner = f" {top_combine.upper()} "
+            print(
+                f"DEBUG: custom_filters ACTIVE on {target_collection}: {joiner.join(active_labels)}",
+                flush=True,
+            )
+        return combined
+
+    # Legacy flat filters[]
+    items = raw.get("filters") or []
+    if not items:
+        return None
+
+    pieces: list[WvFilter] = []
+    active: list[str] = []
+    for item in items:
+        piece, label = _piece_from_filter_item(item, target_collection)
+        if piece is None:
+            continue
+        pieces.append(piece)
+        if label:
+            active.append(label)
+
+    combined = _combine_filters(pieces, top_combine)
+    if combined is not None:
+        joiner = f" {top_combine.upper()} "
+        print(
+            f"DEBUG: custom_filters ACTIVE on {target_collection}: {joiner.join(active)}",
+            flush=True,
+        )
+    return combined
+
+
+def append_content_filters(base_filter: WvFilter, target_collection: Optional[str] = None) -> WvFilter:
+    """Append person/city/country/organisation and optional custom filters."""
+    for label, builder, single_key, multi_key in _CONTENT_FILTER_SPECS:
+        field_filter = builder()
+        if field_filter is not None:
+            base_filter = base_filter & field_filter
+            values = merged_param_values(single_key, multi_key)
+            scope = " (post_type=people)" if label in ("city", "country", "organisation") else ""
+            print(f"DEBUG: {label}_filter ACTIVE for {values}{scope}", flush=True)
+
+    if target_collection:
+        custom_filter = custom_filters_for_collection(target_collection)
+        if custom_filter is not None:
+            base_filter = base_filter & custom_filter
+
+    return base_filter
+
+
+def get_content_filter_debug_info() -> dict[str, dict]:
+    """Active content filters for debug responses."""
+    info: dict[str, dict] = {}
+    for label, _, single_key, multi_key in _CONTENT_FILTER_SPECS:
+        values = merged_param_values(single_key, multi_key)
+        if values:
+            entry: dict = {"names": values, "status": "active"}
+            if label in ("city", "country", "organisation"):
+                entry["post_type"] = "people"
+            info[f"{label}_filter"] = entry
+    custom_filters = get_param("custom_filters")
+    if custom_filters:
+        info["custom_filters"] = custom_filters
+    return info
+
+
+def resolve_collection_name(base_name: str) -> str:
+    """Resolve effective collection name, appending _contextual if configured.
+
+    Checks per-request override first, then falls back to .env default.
+    """
+    if is_using_contextual():
+        return f"{base_name}_contextual"
+    return base_name
+
+
+def is_using_contextual() -> bool:
+    """Check if contextual collections are active for the current request."""
+    return bool(get_param('use_contextual', USE_CONTEXTUAL_COLLECTIONS))
+
+
+# description: resolve the parent document hash from the parent name and site name
+# parameters:
+# - client: weaviate.WeaviateClient - the weaviate client - to enter weaviate database
+# - parent_name: str - the parent name - the name of the parent document
+# - site_name: Optional[str] = None - the site name - the name of the site - if None, all sites are considered
+# returns:
+# - Optional[str] - the parent document hash - this is the hash of the parent document
+def resolve_parent_document_hash(
+    client: weaviate.WeaviateClient,
+    parent_name: str,
+    site_name: Optional[str] = None,
+) -> Optional[str]:
+    """Resolve a parent post name to its document_hash in Weaviate.
+
+    Weaviate's text ``equal`` filter uses word-level tokenisation, so
+    "AI Impact Summit 2026" also matches "Prominent United Nations leaders
+    to attend AI Impact Summit 2026".  To get an exact match we fetch up to
+    50 candidates and post-filter in Python (case-insensitive).
+
+    When *site_name* is provided the Weaviate query is further scoped to
+    that site, narrowing the candidate set.
+
+    Results are cached for the process lifetime to avoid repeated lookups.
+    Returns None if no matching document is found in the document collection.
+    """
+    # cache the parent document hash for the current request
+    cache_key = f"{parent_name}||{site_name}" if site_name else parent_name
+    if cache_key in _parent_hash_cache:
+        return _parent_hash_cache[cache_key]
+
+    try:
+        # get the document collection
+        doc_coll = client.collections.get(resolve_collection_name("DiploDocument"))
+        name_filter = WvFilter.by_property("name").equal(parent_name)
+        if site_name:
+            name_filter = name_filter & WvFilter.by_property("site").equal(site_name)
+        result = doc_coll.query.fetch_objects(
+            filters=name_filter,
+            limit=50,
+            return_properties=["document_hash", "name"],
+        )
+
+        target = parent_name.strip().lower()
+        exact = None
+        first = None
+        for obj in result.objects:
+            props = obj.properties
+            if first is None:
+                first = props.get("document_hash")
+            obj_name = (props.get("name") or "").strip().lower()
+            if obj_name == target:
+                exact = props.get("document_hash")
+                break
+
+        doc_hash = exact or first
+        if doc_hash:
+            _parent_hash_cache[cache_key] = doc_hash
+            match_type = "exact" if exact else "fuzzy (first token-match)"
+            print(f"DEBUG: Resolved parent_filter_name '{parent_name}' (site={site_name}) "
+                  f"→ hash={doc_hash} [{match_type}]", flush=True)
+            return doc_hash
+    except Exception as e:
+        print(f"DEBUG: Failed to resolve parent_filter_name '{parent_name}': {e}", flush=True)
+
+    _parent_hash_cache[cache_key] = None
+    return None
+
+
+# Weights for top-N score aggregation across retrievers
+AGGREGATE_WEIGHTS = [1.0, 0.5, 0.25, 0.15, 0.1]
+
+MAX_SECTION_LEN = 3500
+
+
+def clean_sentence_text(text: str) -> str:
+    """Clean sentence text for deep link highlighting.
+
+    Fixes common issues from HTML-to-text conversion:
+    - Removes backslash escapes
+    - Inserts missing spaces where HTML tags were stripped
+    - Normalizes whitespace
+    """
+    text = text.replace("\\'", "'").replace('\\"', '"').replace("\\n", " ").replace("\\r", "")
+    text = re.sub(r"([.!?;:])([a-zA-Z])", r"\1 \2", text)
+    text = re.sub(r"([a-z])([A-Z])", r"\1 \2", text)
+    text = re.sub(r"('(?:s|t|d|re|ve|ll|m))([a-z])", r"\1 \2", text)
+    text = re.sub(r"  +", " ", text)
+    return text.strip()
+
+
+def aggregate_scores(scores: List[float], weights: List[float] = None) -> float:
+    """Weighted aggregation of top-N sorted scores."""
+    if not scores:
+        return 0.0
+    w = weights or AGGREGATE_WEIGHTS
+    sorted_scores = sorted(scores, reverse=True)
+    return sum(s * wt for s, wt in zip(sorted_scores, w))
+
+
+def group_paragraphs_by_url(objects, *, url_prop: str = "link") -> Dict[str, dict]:
+    """Group Weaviate paragraph search results by URL.
+
+    Returns dict: url -> {paragraphs, sections, props, post_type, label, aggregate_score, ...}
+    """
+    url_groups: Dict[str, dict] = {}
+
+    for obj in objects:
+        props = obj.properties
+        score = obj.metadata.score if obj.metadata else 0.0
+        text = props.get("text") or ""
+        if not text:
+            continue
+
+        url = props.get(url_prop) or ""
+        section = props.get("section") or "general"
+        post_type = (props.get("post_type") or "").lower()
+        label = POST_TYPE_TO_LABEL.get(post_type, post_type.capitalize() if post_type else "Post")
+
+        if url not in url_groups:
+            url_groups[url] = {
+                "paragraphs": [],
+                "sections": {},
+                "props": props,
+                "post_type": post_type,
+                "label": label,
+            }
+
+        para_entry = {
+            "text": text, "score": score,
+            "h2": props.get("h2") or "",
+            "section": section,
+            "last_h_title": props.get("last_h_title") or "",
+        }
+        url_groups[url]["paragraphs"].append(para_entry)
+
+        if section not in url_groups[url]["sections"]:
+            url_groups[url]["sections"][section] = []
+        url_groups[url]["sections"][section].append(para_entry)
+
+    return url_groups
+
+
+def compute_url_aggregate_scores(url_groups: Dict[str, dict]) -> None:
+    """Calculate aggregate scores per URL group in-place.
+
+    Sets: aggregate_score, match_count, best_para, best_section on each group.
+    """
+    for url, group in url_groups.items():
+        paras = group["paragraphs"]
+        if paras:
+            scores = sorted([p["score"] for p in paras], reverse=True)
+            group["aggregate_score"] = aggregate_scores(scores)
+            group["match_count"] = len(paras)
+            group["best_para"] = max(paras, key=lambda p: p["score"])
+        else:
+            group["aggregate_score"] = 0.0
+            group["match_count"] = 0
+            group["best_para"] = {"text": "", "score": 0, "h2": "",
+                                  "section": "general", "last_h_title": ""}
+
+        best_section_name = "general"
+        best_section_score = 0
+        for sec_name, sec_paras in group["sections"].items():
+            sec_score = sum(p["score"] for p in sec_paras)
+            if sec_score > best_section_score:
+                best_section_score = sec_score
+                best_section_name = sec_name
+        group["best_section"] = best_section_name
+
+
+def select_best_section(
+    section_paras: Dict[str, list],
+    query_vector: List[float],
+    embeddings: Embeddings,
+    default_section: str = "general",
+) -> str:
+    """Select the most relevant section via embedding similarity of section titles.
+
+    Falls back to default_section if embedding fails or only one section is eligible.
+    """
+    eligible = []
+    for sec_name, sec_ps in section_paras.items():
+        sec_text = "\n\n".join(p["text"] for p in sec_ps if p["text"])
+        if len(sec_text) < 200:
+            continue
+        title = (sec_ps[0].get("last_h_title") or "").strip()
+        if not title:
+            title = sec_text[:150]
+        eligible.append((sec_name, title))
+
+    if len(eligible) <= 1:
+        return eligible[0][0] if eligible else default_section
+
+    try:
+        titles = [t for _, t in eligible]
+        title_vectors = embeddings.embed_documents(titles)
+
+        q_norm = sum(x * x for x in query_vector) ** 0.5
+        best_idx = 0
+        best_sim = -1.0
+        for i, tv in enumerate(title_vectors):
+            dot = sum(a * b for a, b in zip(query_vector, tv))
+            t_norm = sum(x * x for x in tv) ** 0.5
+            sim = dot / (q_norm * t_norm) if q_norm and t_norm else 0.0
+            if sim > best_sim:
+                best_sim = sim
+                best_idx = i
+
+        return eligible[best_idx][0]
+    except Exception as e:
+        print(f"DEBUG: Section embedding similarity failed: {e}", flush=True)
+        return default_section
+
+
+def build_section_content(
+    section_paras: Dict[str, list],
+    target_section: str,
+    max_len: int = MAX_SECTION_LEN,
+) -> Tuple[str, list]:
+    """Join paragraphs of target section, truncate if needed.
+
+    Returns (section_text, target_paras).
+    """
+    target_paras = section_paras.get(target_section, [])
+    for sec_name in section_paras:
+        section_paras[sec_name].sort(key=lambda p: p.get("paragraph_index", 0))
+
+    section_text = "\n\n".join(p["text"] for p in target_paras if p["text"])
+    if len(section_text) > max_len:
+        section_text = section_text[:max_len] + "..."
+
+    return section_text, target_paras
+
+
+def build_paragraph_document(
+    url: str,
+    group: dict,
+    section_text: str,
+    target_section: str,
+    target_paras: list,
+    fetched_count: int,
+    source: str = "paragraph_search",
+) -> Document:
+    """Build a Document from aggregated paragraph search results."""
+    props = group["props"]
+    hybrid_best = group["best_para"]
+    content = section_text if section_text else hybrid_best.get("text", "")
+
+    target_section_title = ""
+    for tp in target_paras:
+        lht = tp.get("last_h_title", "")
+        if lht:
+            target_section_title = lht
+            break
+
+    best = target_paras[0] if target_paras else hybrid_best
+
+    metadata = {
+        "title": props.get("h1") or props.get("name") or "",
+        "url": url,
+        "date": str(props.get("date") or ""),
+        "label": group["label"],
+        "post_type": group["post_type"],
+        "h1": props.get("h1") or "",
+        "h2": best.get("h2", ""),
+        "h3": props.get("h3") or "",
+        "section": target_section,
+        "strong_heading": props.get("strong_heading") or "",
+        "_index": group.get("_index", resolve_collection_name("DiploParagraph")),
+        "_best_sentence": clean_sentence_text((hybrid_best.get("text", "") or "")[:200]),
+        "_best_sentence_score": hybrid_best.get("score", 0),
+        "_aggregate_score": group["aggregate_score"],
+        "_matched_paragraphs": group["match_count"],
+        "_fetched_paragraphs": fetched_count,
+        "_section": target_section,
+        "_section_title": target_section_title,
+        "_num_sections": len(group.get("sections", {})),
+        "_force_boost": group.get("_force_boost", 1.0),
+        "_force_reason": group.get("_force_reason", ""),
+        "_label_weight": 1.0,
+        "_final_score": group["aggregate_score"],
+        "_source": source,
+    }
+
+    return Document(page_content=content, metadata=metadata)

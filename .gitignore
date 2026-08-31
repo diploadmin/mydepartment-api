@@ -1,0 +1,42 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+
+# Virtual environment
+.venv/
+
+# Environment variables (including examples — may contain real keys)
+.env
+.env.*
+.env.example
+**/.env.example
+**/env.*.example
+
+# Redis data
+redis_data/
+
+# Logs
+api_logs/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Docker
+docker-compose.yml
+docker-compose.test.yml
+
+# Docker volumes
+*.log
+
+# Generated debug subgraph HTML (local only)
+subgraphs/
