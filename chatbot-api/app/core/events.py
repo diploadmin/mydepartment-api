@@ -1,3 +1,5 @@
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from typing import Callable
 from loguru import logger
@@ -24,3 +26,13 @@ def create_stop_app_handler(app: FastAPI):
         Singleton().weaviate_client.close()
         flush_langfuse()
     return stop_app
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Startup/shutdown hooks; Starlette 1.x dropped the on_event API."""
+    await create_start_app_handler(app)()
+    try:
+        yield
+    finally:
+        await create_stop_app_handler(app)()

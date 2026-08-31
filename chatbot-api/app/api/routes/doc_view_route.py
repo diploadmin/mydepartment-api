@@ -20,8 +20,8 @@ from app.core.weaviate_props import (
     FULL_TEXT,
     PARENT_DOCUMENT_HASH,
     PUBLISH_DATE,
-    doc_title,
 )
+from app.services.doc_title_service import display_title
 
 router = APIRouter()
 
@@ -231,7 +231,7 @@ async def view_document(document_hash: str) -> HTMLResponse:
     if not body:
         raise HTTPException(status_code=404, detail="Document has no stored text")
 
-    title = doc_title(props) or "Document"
+    title = display_title(props) or "Document"
     pub = props.get(PUBLISH_DATE)
     subtitle_parts = ["Stored document — no public source URL"]
     if pub:
