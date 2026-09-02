@@ -314,6 +314,24 @@ PERSON_LIST_CACHE_TTL_SECONDS: int = config(
     "PERSON_LIST_CACHE_TTL_SECONDS", cast=int, default=3600
 )
 
+# MyDepartment chatbot gateway (/api/chatbot)
+# A chatbot is a Chatbot Generator assistant. Its prompt, knowledge scope and
+# org-scoped retrieval parameters are assembled by the Department backend on
+# every run, so the gateway drives that backend instead of LangGraph directly.
+DEPARTMENT_API_BASE_URL: str = config(
+    "DEPARTMENT_API_BASE_URL", cast=str, default="https://api.mydepartment.ai"
+)
+CHATBOT_GENERATOR_API_PATH: str = config(
+    "CHATBOT_GENERATOR_API_PATH", cast=str, default="/api/chatbot-generator"
+)
+# When set, /api/chatbot/* is reachable from any IP that presents this key and
+# the IP allowlist no longer applies to it (see IPAllowlistMiddleware).
+CHATBOT_INVOKE_API_KEY: str = config("CHATBOT_INVOKE_API_KEY", cast=str, default="")
+# Budget for a whole chatbot turn (retrieval + generation), not per chunk.
+CHATBOT_INVOKE_TIMEOUT: float = config(
+    "CHATBOT_INVOKE_TIMEOUT", cast=float, default=300.0
+)
+
 # logging configuration
 
 LOGGING_LEVEL = logging.DEBUG if DEBUG else logging.INFO

@@ -43,6 +43,37 @@ poetry run python run_chatbot.py
 | GET | `/api/deep-link/{dl_id}` | Retrieve deep link data |
 | POST | `/api/debug/retrieve` | Debug retrieval (full pipeline introspection) |
 
+## MyDepartment Chatbot Gateway
+
+Calls a chatbot built in the Chatbot Generator, identified either by its uid or
+by the public share link it is handed out with. Runs go through the Department
+backend's public endpoints — the same path the shareable link takes in a
+browser — so only publicly shared chatbots are reachable, and answers match
+what that link produces.
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/api/chatbot/{chatbot_uid}` | Chatbot name and default model |
+| POST | `/api/chatbot/{chatbot_uid}` | Ask by uid, returns the finished answer |
+| POST | `/api/chatbot/{chatbot_uid}/stream` | Same, as server-sent events |
+| POST | `/api/chatbot/invoke` | Ask by `chatbot_uid` or `public_link` in the body |
+| POST | `/api/chatbot/stream` | Same, as server-sent events |
+
+Authenticate with `CHATBOT_INVOKE_API_KEY` as either `X-API-Key` or
+`Authorization: Bearer`. With no key configured the routes stay behind the
+`ALLOWED_IPS` allowlist instead.
+
+```bash
+curl -X POST https://mydepartment-api.mydepartment.ai/api/chatbot/invoke \
+  -H "X-API-Key: $CHATBOT_INVOKE_API_KEY" -H 'Content-Type: application/json' \
+  -d '{"public_link": "https://mydepartment.ai/coworkers/chatbot/public/<uid>",
+       "message": "What can you help me with?"}'
+```
+
+The response carries a `thread_id`; send it back in the next request to
+continue that conversation. The streaming routes return it as `X-Thread-Id`
+before the first event.
+
 ## Retrieval Strategies
 
 Four retrieval modes, configurable via `RETRIEVAL_MODE`:

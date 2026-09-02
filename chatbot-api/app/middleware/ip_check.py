@@ -7,7 +7,7 @@ from starlette.requests import Request
 from starlette.responses import Response
 from starlette.status import HTTP_403_FORBIDDEN
 
-from app.core.config import ALLOWED_IPS
+from app.core.config import ALLOWED_IPS, CHATBOT_INVOKE_API_KEY
 
 # description: _parse_allowlist parses the ALLOWED_IPS list into a list of ipaddress objects (supports both IPs and CIDR)
 # takes params:
@@ -60,7 +60,11 @@ def _is_allowed(ip_str: str) -> bool:
 # it uses:
 # dispatch method to check if the client IP is in the allowed list
 class IPAllowlistMiddleware(BaseHTTPMiddleware):
-    PUBLIC_PREFIXES = ("/api/deep-link/", "/api/doc/")
+    # The chatbot gateway is meant to be called from anywhere, but it only
+    # leaves the allowlist once an API key exists to authenticate those callers.
+    PUBLIC_PREFIXES = ("/api/deep-link/", "/api/doc/") + (
+        ("/api/chatbot/",) if CHATBOT_INVOKE_API_KEY else ()
+    )
     # description: dispatch method checks if the client IP is in the allowed list
         # if it is not in the allowed list, it returns a Response object with a status code of 403
         # if it is in the allowed list, it calls the next middleware or endpoint (async function that returns a Response object)

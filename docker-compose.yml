@@ -10,6 +10,11 @@ services:
       - "${PORT:-8566}:${PORT:-8566}"
     env_file:
       - .env
+    # The chatbot gateway calls the Department API over its public hostname,
+    # which the host resolves to 127.0.1.1 — a loopback the container cannot
+    # follow. Pin it to the host so TLS still validates against the real name.
+    extra_hosts:
+      - "api.mydepartment.ai:host-gateway"
     # No hardcoded app config here — everything comes from root .env.
     # CMD is run_chatbot.py which reads HOST/PORT/RELOAD from env.
     depends_on:

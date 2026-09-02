@@ -3,6 +3,7 @@ from urllib.parse import quote_plus
 
 from app.api.routes import chat_route
 from app.api.routes import chat_sh_route
+from app.api.routes import chatbot_route
 from app.api.routes import conversation_route
 from app.api.routes import ingest_route
 from app.api.routes import deep_link_route
@@ -26,3 +27,5 @@ router.include_router(metadata_route.router, tags=["Metadata"], prefix="/metadat
 router.include_router(custom_filter_routes.router, tags=["CustomFilters"], prefix="/weaviate")
 # Public: source cards for URL-less documents link here from the browser.
 router.include_router(doc_view_route.router, tags=["DocViewer"], prefix="/doc")
+# Gateway for calling MyDepartment chatbots by uid or public share link.
+router.include_router(chatbot_route.router, tags=["Chatbot"], prefix="/chatbot")
