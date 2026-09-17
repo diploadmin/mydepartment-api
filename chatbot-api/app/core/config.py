@@ -331,6 +331,12 @@ CHATBOT_INVOKE_API_KEY: str = config("CHATBOT_INVOKE_API_KEY", cast=str, default
 CHATBOT_INVOKE_TIMEOUT: float = config(
     "CHATBOT_INVOKE_TIMEOUT", cast=float, default=300.0
 )
+# The chatbot catalog is not an embed route, so unlike the run endpoints it
+# needs the Department backend's own service key to answer.
+DEPARTMENT_API_KEY: str = config("DEPARTMENT_API_KEY", cast=str, default="")
+DEPARTMENT_API_KEY_HEADER: str = config(
+    "DEPARTMENT_API_KEY_HEADER", cast=str, default="diplo-sso-api-key"
+)
 
 # logging configuration
 

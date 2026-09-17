@@ -15,6 +15,7 @@ from app.schemas.chatbot_schema import (
     ChatbotInfoResponse,
     ChatbotInvokeRequest,
     ChatbotInvokeResponse,
+    ChatbotListResponse,
     ChatbotMessageRequest,
 )
 from app.services.chatbot_service import (
@@ -75,6 +76,17 @@ async def _stream(
 
 
 # Declared before /{chatbot_uid} so these literal paths win the match.
+@router.get("/list", summary="Every chatbot, with its organization and owner")
+async def list_chatbots(
+    service: ChatbotService = Depends(ChatbotService),
+) -> ChatbotListResponse:
+    try:
+        chatbots = await service.list_chatbots()
+    except ChatbotUpstreamError as exc:
+        raise HTTPException(status_code=exc.status_code, detail=exc.detail) from exc
+    return ChatbotListResponse(count=len(chatbots), chatbots=chatbots)
+
+
 @router.post("/invoke", summary="Ask a chatbot identified in the body")
 async def invoke_chatbot(
     data: ChatbotInvokeRequest,

@@ -53,6 +53,7 @@ what that link produces.
 
 | Method | Path | Description |
 |--------|------|-------------|
+| GET | `/api/chatbot/list` | Every chatbot: name, organization, owner, public link |
 | GET | `/api/chatbot/{chatbot_uid}` | Chatbot name and default model |
 | POST | `/api/chatbot/{chatbot_uid}` | Ask by uid, returns the finished answer |
 | POST | `/api/chatbot/{chatbot_uid}/stream` | Same, as server-sent events |
@@ -73,6 +74,26 @@ curl -X POST https://mydepartment-api.mydepartment.ai/api/chatbot/invoke \
 The response carries a `thread_id`; send it back in the next request to
 continue that conversation. The streaming routes return it as `X-Thread-Id`
 before the first event.
+
+`/api/chatbot/list` covers private chatbots too, since it is the catalog an
+operator needs; `access_level` says which ones actually answer on their
+`public_link`. It reads the Department backend's `/assistants/catalog`, so it
+needs `DEPARTMENT_API_KEY` (that backend's own service key) on top of the
+gateway key.
+
+```bash
+curl https://mydepartment-api.mydepartment.ai/api/chatbot/list \
+  -H "X-API-Key: $CHATBOT_INVOKE_API_KEY"
+```
+
+```json
+{"count": 1146,
+ "chatbots": [{"chatbot_uid": "155fba2a-...", "name": "Zimbabwe",
+               "organization_id": "5a592e74-...", "organization_name": "Diplo Team",
+               "owner": "Marko Markovic", "owner_email": "markom@diplomacy.edu",
+               "public_link": "https://mydepartment.ai/coworkers/chatbot/public/155fba2a-...",
+               "access_level": "public"}]}
+```
 
 ## Retrieval Strategies
 

@@ -56,3 +56,21 @@ class ChatbotInfoResponse(BaseModel):
     name: Optional[str] = None
     description: Optional[str] = None
     model: Optional[str] = None
+
+
+class ChatbotListItem(BaseModel):
+    chatbot_uid: str
+    name: Optional[str] = None
+    organization_id: Optional[str] = None
+    organization_name: Optional[str] = None
+    owner: Optional[str] = None
+    owner_email: Optional[str] = None
+    # Only a public chatbot answers on its link; for the rest it is the link
+    # the owner would have to share first.
+    public_link: Optional[str] = None
+    access_level: Optional[str] = None
+
+
+class ChatbotListResponse(BaseModel):
+    count: int
+    chatbots: List[ChatbotListItem] = []

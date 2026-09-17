@@ -19,6 +19,8 @@ from app.core.config import (
     CHATBOT_GENERATOR_API_PATH,
     CHATBOT_INVOKE_TIMEOUT,
     DEPARTMENT_API_BASE_URL,
+    DEPARTMENT_API_KEY,
+    DEPARTMENT_API_KEY_HEADER,
 )
 from app.core.logging import logger
 
@@ -168,6 +170,39 @@ class ChatbotService:
     def _fail(action: str, exc: Exception) -> ChatbotUpstreamError:
         logger.error(f"[chatbot] {action} failed: {exc}")
         return ChatbotUpstreamError(f"Chatbot service unreachable ({action})", 503)
+
+    async def list_chatbots(self) -> List[Dict[str, Any]]:
+        """Every chatbot in the deployment, with its organization and owner.
+
+        The names behind the ids live in the Department backend's own tables,
+        so the catalog is assembled there and only relayed here.
+        """
+        headers = (
+            {DEPARTMENT_API_KEY_HEADER: DEPARTMENT_API_KEY}
+            if DEPARTMENT_API_KEY
+            else {}
+        )
+        try:
+            async with self._client() as client:
+                response = await client.get(
+                    f"{self.base_url}/assistants/catalog", headers=headers
+                )
+        except httpx.HTTPError as exc:
+            raise self._fail("chatbot list", exc) from exc
+
+        if response.status_code in (401, 403):
+            raise ChatbotUpstreamError(
+                "Chatbot catalog refused the service key; check DEPARTMENT_API_KEY",
+                502,
+            )
+        if response.status_code >= 400:
+            raise ChatbotUpstreamError(
+                f"Chatbot list returned {response.status_code}", 502
+            )
+        chatbots = response.json()
+        if not isinstance(chatbots, list):
+            raise ChatbotUpstreamError("Chatbot list returned no catalog", 502)
+        return chatbots
 
     async def get_chatbot(self, chatbot_uid: str) -> Dict[str, Any]:
         """Public chatbot record, or ChatbotNotFound if it is not shared."""
