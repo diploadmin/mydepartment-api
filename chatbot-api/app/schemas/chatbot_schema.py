@@ -18,6 +18,9 @@ class ChatbotMessageRequest(BaseModel):
     thread_id: Optional[str] = None
     # Overrides the chatbot's own default model.
     model: Optional[str] = None
+    # Overrides the chatbot's stored system prompt for this turn only.
+    # Omit it, or send it blank, and the prompt saved on the chatbot is used.
+    prompt: Optional[str] = None
 
 
 class ChatbotInvokeRequest(ChatbotMessageRequest):

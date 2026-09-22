@@ -252,14 +252,27 @@ class ChatbotService:
         return configurable.get("defaultModelName")
 
     def _run_body(
-        self, chatbot_uid: str, message: str, model: Optional[str]
+        self,
+        chatbot_uid: str,
+        message: str,
+        model: Optional[str] = None,
+        prompt: Optional[str] = None,
     ) -> Dict[str, Any]:
         body: Dict[str, Any] = {
             "assistant_id": chatbot_uid,
             "input": {"messages": [{"role": "user", "content": message}]},
         }
+        # The Department backend fills ``systemPrompt`` from the chatbot record
+        # only when the key is absent (setdefault). A non-blank prompt here
+        # therefore replaces the stored one for this turn and nothing else.
+        configurable: Dict[str, Any] = {}
         if model:
-            body["config"] = {"configurable": {"customModelName": model}}
+            configurable["customModelName"] = model
+        override = (prompt or "").strip()
+        if override:
+            configurable["systemPrompt"] = override
+        if configurable:
+            body["config"] = {"configurable": configurable}
         return body
 
     def _run_url(self, thread_id: str) -> str:
@@ -278,6 +291,7 @@ class ChatbotService:
         message: str,
         thread_id: Optional[str] = None,
         model: Optional[str] = None,
+        prompt: Optional[str] = None,
     ) -> Dict[str, Any]:
         """Run one turn and return the finished answer."""
         chatbot = await self.get_chatbot(chatbot_uid)
@@ -294,7 +308,7 @@ class ChatbotService:
                 async with client.stream(
                     "POST",
                     self._run_url(thread_id),
-                    json=self._run_body(chatbot_uid, message, model),
+                    json=self._run_body(chatbot_uid, message, model, prompt),
                 ) as response:
                     if response.status_code == 404:
                         raise ChatbotNotFound(chatbot_uid)
@@ -354,6 +368,7 @@ class ChatbotService:
         thread_id: str,
         message: str,
         model: Optional[str] = None,
+        prompt: Optional[str] = None,
     ) -> AsyncIterator[bytes]:
         """Forward the run's server-sent events untouched.
 
@@ -365,7 +380,7 @@ class ChatbotService:
                 async with client.stream(
                     "POST",
                     self._run_url(thread_id),
-                    json=self._run_body(chatbot_uid, message, model),
+                    json=self._run_body(chatbot_uid, message, model, prompt),
                 ) as response:
                     if response.status_code >= 400:
                         detail = await self._upstream_detail(response)

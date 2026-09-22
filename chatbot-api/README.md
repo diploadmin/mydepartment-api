@@ -71,6 +71,18 @@ curl -X POST https://mydepartment-api.mydepartment.ai/api/chatbot/invoke \
        "message": "What can you help me with?"}'
 ```
 
+Optional `prompt` replaces the chatbot's stored system prompt for that turn
+only. Leave it out (or send it blank) and the prompt saved on the chatbot is
+used. It is not written back to the chatbot.
+
+```bash
+curl -X POST https://mydepartment-api.mydepartment.ai/api/chatbot/invoke \
+  -H "X-API-Key: $CHATBOT_INVOKE_API_KEY" -H 'Content-Type: application/json' \
+  -d '{"chatbot_uid": "<uid>",
+       "prompt": "Answer in one sentence, in Serbian.",
+       "message": "What can you help me with?"}'
+```
+
 The response carries a `thread_id`; send it back in the next request to
 continue that conversation. The streaming routes return it as `X-Thread-Id`
 before the first event.

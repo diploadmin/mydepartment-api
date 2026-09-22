@@ -46,7 +46,7 @@ async def _answer(
 ) -> ChatbotInvokeResponse:
     try:
         result = await service.invoke(
-            chatbot_uid, data.message, data.thread_id, data.model
+            chatbot_uid, data.message, data.thread_id, data.model, data.prompt
         )
     except ChatbotNotFound as exc:
         raise HTTPException(status_code=404, detail=_NOT_FOUND) from exc
@@ -69,7 +69,7 @@ async def _stream(
         raise HTTPException(status_code=exc.status_code, detail=exc.detail) from exc
 
     return StreamingResponse(
-        service.stream(chatbot_uid, thread_id, data.message, data.model),
+        service.stream(chatbot_uid, thread_id, data.message, data.model, data.prompt),
         media_type="text/event-stream",
         headers={**_STREAM_HEADERS, "X-Thread-Id": thread_id},
     )
